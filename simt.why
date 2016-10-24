@@ -1,0 +1,176 @@
+theory Simt
+  use import int.Int
+  use import bool.Bool
+  use import map.Map
+
+  type dim3 = { x : int; y : int; z : int }
+  type block = dim3
+  type thread = (block, dim3)
+  function bid_of (t : thread) : block = let (bid, _) = t in bid
+  function tid_of (t : thread) : dim3 = let (_, tid) = t in tid
+  (* type local 'a = map thread 'a *)
+  (* type shared 'a = map block 'a *)
+  (* type global 'a = 'a *)
+  (* constant threadIdx : local dim3 *)
+  (* constant blockIdx : shared dim3 *)
+  constant blockDim : dim3
+  constant gridDim : dim3
+  axiom blockDim_x_pos : 0 < blockDim.x
+  axiom blockDim_y_pos : 0 < blockDim.y
+  axiom blockDim_z_pos : 0 < blockDim.z
+  axiom gridDim_x_pos : 0 < gridDim.x
+  axiom gridDim_y_pos : 0 < gridDim.y
+  axiom gridDim_z_pos : 0 < gridDim.z
+  predicate is_valid_bid (i : dim3) =
+    0 <= i.x < gridDim.x /\ 0 <= i.y < gridDim.y /\ 0 <= i.z < gridDim.z
+  predicate is_valid_tid (i : dim3) =
+    0 <= i.x < blockDim.x /\ 0 <= i.y < blockDim.y /\ 0 <= i.z < blockDim.z
+  predicate is_valid_thread (t : thread) =
+    let (bid, tid) = t in is_valid_bid bid /\ is_valid_tid tid
+
+  (* function acc_local (a : local 'a) (t : thread) : 'a = a[t] *)
+  (* function acc_shared (a : shared 'a) (b : block) : 'a = a[b] *)
+  (* function acc_global (x : global 'a) : 'a = x *)
+  (* 配列は論文に合わせるなら array (local 'a) とかになる
+     （local (array 'a) ではなく）
+     なのでアクセスは (acc_local a t)[i], (acc_shared a b)[i][j] などの形
+     <-- array と local が逆のような気がする。アクセスの形は正しい (14-12-15 (Mon))
+     *)
+
+  (* axiom blockIdx_valid : *)
+  (*   forall b. is_valid_bid b -> acc_shared blockIdx b = b *)
+  (* axiom threadIdx_valid : *)
+  (*   forall t. is_valid_thread t -> acc_local threadIdx t = tid_of t *)
+
+  (* type mask = local bool *)
+  (* constant initial_mask : mask = const true *)
+  (* axiom Initial_mask_true : *)
+  (*   forall bid. is_valid_bid bid -> *)
+  (*     forall tid. is_valid_tid tid -> initial_mask[(bid, tid)] = true *)
+
+  (* function mask_intersec mask mask : mask *)
+  (* function (&&&) (m1 : mask) (m2 : mask) : mask = mask_intersec m1 m2 *)
+  (* axiom Mask_intersec_spec : *)
+  (*   forall m1 m2 t. (m1 &&& m2)[t] = andb m1[t] m2[t] *)
+  (* function mask_diff mask mask : mask *)
+  (* function (--) (m1 : mask) (m2 : mask) : mask = mask_diff m1 m2 *)
+  (* axiom Mask_diff_spec : *)
+  (*   forall m1 m2 t. (m1 -- m2)[t] = andb (not m1[t]) m2[t] *)
+  (* predicate none (m : mask) = forall t. not m[t] *)
+  (* predicate all (m : mask) = forall t. m[t] *)
+  (* mask と bool expr の関係をどこで付けるか？ why3 の外（とりあえず） *)
+
+  (* new version of mask representation *)
+  (* type mask = Total | Conj mask (local bool) | Diff mask (local bool) *)
+  (* function is_active (m : mask) (t : thread) : bool = *)
+  (*   match m with *)
+  (*   | Total -> True *)
+  (*   | Conj m1 p -> andb (acc_local p t) (is_active m1 t) *)
+  (*   | Diff m1 p -> andb (notb (acc_local p t)) (is_active m1 t) *)
+  (*   end *)
+  (* predicate is_empty (m : mask) = forall t. is_valid_thread t -> notb (is_active m t) *)
+  (* predicate all (m : mask) = forall t. is_valid_thread t -> is_active m t *)
+  (* predicate is_uniform (m : mask) = *)
+  (*   forall t1 t2. is_valid_thread t1 -> is_valid_thread t2 -> *)
+  (*   is_active m t1 = is_active m t2 *)
+  (* constant initial_mask : mask = Total *)
+  (* function mask_conj (m : mask) (p : local bool) : mask = Conj m p *)
+  (* function mask_diff (m : mask) (p : local bool) : mask = Diff m p *)
+
+  (* lemma lem : forall a x y i : int [a * x + i, a * y]. *)
+  (*   0 <= i < a -> a * x + i < a * y -> x < y *)
+  (* lemma lem' : forall a x y i : int [a * x + i, a * y]. *)
+  (*   0 <= i < a -> x < y -> a * x + i < a * y *)
+end
+
+theory Sum
+  use import int.Int
+  use import HighOrd
+  use import real.RealInfix
+
+  function sum_i (f : int -> int) (a b : int) : int
+  function sum_r (f : int -> real) (a b : int) : real
+
+  axiom sum_i_base : forall f a b. a > b -> sum_i f a b = 0
+  axiom sum_r_base : forall f a b. a > b -> sum_r f a b = 0.
+
+  axiom sum_i_down : forall f a b. a <= b -> sum_i f a b = f b + sum_i f a (b - 1)
+  axiom sum_r_down : forall f a b. a <= b -> sum_r f a b = f b +. sum_r f a (b - 1)
+
+  axiom sum_r_ext :
+    forall f g. (forall k. f k = g k) ->
+      forall a b. sum_r f a b = sum_r g a b
+
+  axiom sum_i_ext :
+    forall f g. (forall k. f k = g k) ->
+      forall a b. sum_i f a b = sum_i g a b
+
+end
+
+(* hints for automation *)
+(* theory SimtHints
+ *   use import int.Int
+ *   use import bool.Bool
+ *   use import map.Map
+ *   use import int.ComputerDivision
+ *   use import Simt
+ * 
+ *   predicate is_accessed (int)
+ *   predicate is_loop_count (int)
+ *   predicate is_loop_var (map thread int)
+ *   predicate is_index_x (int)
+ *   predicate is_index_y (int)
+ *   
+ *   lemma divide_into_block_1' :
+ *     forall i : int. 0 <= i < gridDim.x * blockDim.x ->
+ *       let t = ({x = div i blockDim.x; y = 0; z = 0},
+ *                {x = mod i blockDim.x; y = 0; z = 0}) in
+ *         is_valid_thread t /\ i = blockDim.x * (bid_of t).x + (tid_of t).x
+ * 
+ *   lemma divide_into_block_1 :
+ *     forall i : int. 0 <= i < gridDim.x * blockDim.x ->
+ *       exists t : thread.
+ *         is_valid_thread t /\
+ *         i = blockDim.x * (bid_of t).x + (tid_of t).x
+ * 
+ *   lemma divide_into_block_2' :
+ *     forall i j.
+ *       0 <= i < x gridDim * x blockDim ->
+ *       0 <= j < y gridDim * y blockDim ->
+ *       let t = ({x = div i blockDim.x; y = div j blockDim.y; z = 0},
+ *                {x = mod i blockDim.x; y = mod j blockDim.y; z = 0}) in
+ *         is_valid_thread t /\
+ *         i = x blockDim * x (bid_of t) + x (tid_of t) /\
+ *         j = y blockDim * y (bid_of t) + y (tid_of t)
+ * 
+ *   lemma divide_into_block_2 :
+ *     forall i j [is_index_x i, is_index_y j].
+ *       0 <= i < x gridDim * x blockDim ->
+ *       0 <= j < y gridDim * y blockDim ->
+ *       exists t.
+ *         is_valid_thread t /\
+ *         i = x blockDim * x (bid_of t) + x (tid_of t) /\
+ *         j = y blockDim * y (bid_of t) + y (tid_of t)
+ * 
+ *   lemma thread_exists_xy :
+ *     forall i j [is_index_x i, is_index_y j].
+ *       0 <= i < x blockDim ->
+ *       0 <= j < y blockDim ->
+ *         exists t. is_valid_tid t /\ i = x t /\ j = y t
+ * 
+ *   lemma find_thread_from_index :
+ *     forall k0 k. k0 <= k < k0 + x gridDim * x blockDim ->
+ *       forall i. (forall t. is_valid_thread t ->
+ *                    i[t] = x blockDim * x (bid_of t) + x (tid_of t) + k0) ->
+ *         exists t. is_valid_thread t /\ i[t] = k
+ *   
+ *   lemma find_thread_from_index' :
+ *     forall m [is_loop_count m]. forall k.
+ *       x gridDim * x blockDim * m <= k < x gridDim * x blockDim * (m + 1) ->
+ *       forall i [is_loop_var i].
+ *         (forall t. is_valid_thread t ->
+ *                    i[t] = x blockDim * x (bid_of t) + x (tid_of t) +
+ *                           x gridDim * x blockDim * m) ->
+ *         exists t. is_valid_thread t /\ i[t] = k
+ * 
+ * end *)

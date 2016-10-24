@@ -1,0 +1,22 @@
+  use import why3.BuiltIn.BuiltIn
+  
+  use import simt.Simt
+  
+  use import int.ComputerDivision
+
+  use import int.Power
+  
+  use import real.Real
+
+  use import real.RealInfix
+  
+  use import real.FromInt
+  
+  use import array.Array
+
+  use import map.Map
+
+  use import int.Int
+
+  function get1 (a : array 'a) (i : int) : 'a  = Array.get a i
+  

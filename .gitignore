@@ -1,0 +1,15 @@
+.depend
+*.opt
+*.annot
+*.cmi
+*.cmt
+*.cmti
+*.cmx
+*.cmo
+*.o
+flexer.ml
+flexer.mli
+fparser.ml
+fparser.mli
+fparser.output
+
