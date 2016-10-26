@@ -56,7 +56,7 @@ let rec simplify_formula t =
   let f t =
     t
     |> Vctrans.decompose_thread_quant
-    (* |> Vctrans.merge_quantifiers *)
+    |> Vctrans.merge_quantifiers
   in
   repeat_on_term f t
 
