@@ -1,5 +1,6 @@
 .depend
 *.opt
+*.byte
 *.annot
 *.cmi
 *.cmt
