@@ -126,20 +126,26 @@ let rec try_on_task_tree prove = function
   | TTSuccess -> TTSuccess
   | TTFail -> TTFail
 
-let rec print_task_list tasks =
-  let print task =
-    if !print_task_style = "full" then
-      begin
-        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
-        print_task_full task None
-      end
-    else if !print_task_style = "short" then
-      begin
-        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
-        print_task_short task None
-      end
-  in
-  List.iter print tasks
+let print_task task =
+  if !print_task_style = "full" then
+    begin
+      Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
+      print_task_full task None
+    end
+  else if !print_task_style = "short" then
+    begin
+      Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
+      print_task_short task None
+    end
+
+let print_task_list tasks = List.iter print_task tasks
+
+let rec print_all_tasks = function
+  | TTLeaf task -> print_task task
+  | TTAnd tts
+  | TTOr tts -> List.iter print_all_tasks tts
+  | TTSuccess
+  | TTFail -> ()
 
 let rec print_task_tree tt =
   let rec pp_structure fmt tt =
@@ -374,6 +380,7 @@ let verify_spec filename funcname =
     let tt''' = try_on_task_tree try_elim_eq tt'' in
     (* print unsolved tasks *)
     print_task_tree tt''';
+    print_all_tasks tt''';
     (* List.iter Vctrans.collect_eqns_test tasks'; *)
     if tt''' = TTSuccess then
       Format.printf "Verified!@."
