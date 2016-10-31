@@ -48,32 +48,85 @@ let find_decl file name =
 
 
 (* ---------------- transform task *)
+type task_tree =
+  | TTLeaf of Why3.Task.task
+  | TTAnd of task_tree list
+  | TTOr of task_tree list
+  | TTSuccess                   (* no more task to solve *)
+  | TTFail                      (* unsolvable task; currently there is
+                                 * no possibilty of arising this during
+                                 * verification process,
+                                 * because we use no refutation
+                                 * procedure. *)
+
 let rec repeat_on_term f t =
   let t' = f t in
   if Why3.Term.t_equal t t' then t else repeat_on_term f t'
 
-let rec simplify_formula t =
-  let f t =
-    t
-    |> Vctrans.decompose_thread_quant
-    (* |> Vctrans.merge_quantifiers *)
-  in
-  repeat_on_term f t
+let tt_and = function
+  | [] -> TTSuccess
+  | [tt] -> tt
+  | tts -> TTAnd tts
+
+let tt_or = function
+  | [] -> invalid_arg "tt_or, empty list"
+  | [tt] -> tt
+  | tts -> TTOr tts
+
+let rec reduce_task_tree = function
+  | TTLeaf _ as tt -> tt
+  | TTAnd [] -> TTSuccess
+  | TTOr [] -> TTFail
+  | TTAnd [tt]
+  | TTOr [tt] -> reduce_task_tree tt
+  | TTAnd tts ->
+     let tts' = List.map reduce_task_tree tts in
+     if List.mem TTFail tts' then TTFail
+     else tt_and @@ List.remove_all tts' TTSuccess
+  | TTOr tts ->
+     let tts' = List.map reduce_task_tree tts in
+     if List.mem TTSuccess tts' then TTSuccess
+     else tt_or @@ List.remove_all tts' TTFail
+  | TTSuccess -> TTSuccess
+  | TTFail -> TTFail
 
 let simplify_task task =
-  task
-  |> Vctrans.rewrite_using_premises
-  |> List.map @@ (task_map_decl simplify_formula)
-  |> List.map @@ Vctrans.rewrite_using_simple_premises
-  |> List.concat
-  |> List.map @@ apply_why3trans "split_goal_right"
-  |> List.concat
-  |> List.map @@ (task_map_decl simplify_formula)
-  |> List.map @@ Vctrans.eliminate_linear_quantifier
-  |> List.map @@ (task_map_decl simplify_formula)
-  |> List.map @@ Vctrans.simplify_affine_formula
-  |> List.map (apply_why3trans "compute_specified")
-  |> List.concat
+  let tasks =
+    (* common simplification *)
+    task
+    |> Vctrans.rewrite_using_premises
+    (* |> List.map @@ (task_map_decl simplify_formula) *)
+    |> List.map @@
+         (task_map_decl (repeat_on_term Vctrans.decompose_thread_quant))
+    |> List.map @@ Vctrans.rewrite_using_simple_premises
+    |> List.concat
+    |> List.map @@ apply_why3trans "split_goal_right"
+    |> List.concat
+  (* |> List.map @@ (task_map_decl simplify_formula) *)
+  in
+  let simplify task =
+    let tt1 =
+      (* merge -> qe *)
+      task
+      |> task_map_decl (repeat_on_term Vctrans.merge_quantifiers)
+      |> Vctrans.eliminate_linear_quantifier
+      |> task_map_decl simplify_formula
+      |> Vctrans.simplify_affine_formula
+      |> apply_why3trans "compute_specified"
+      |> List.map (fun x -> TTLeaf x)
+    in
+    let tt2 =
+      (* no merging, only affine expression simplification *)
+      task
+      |> Vctrans.simplify_affine_formula
+      |> Vctrans.eliminate_linear_quantifier
+      |> task_map_decl simplify_formula
+      |> apply_why3trans "compute_specified"
+      |> List.map (fun x -> TTLeaf x)
+    in
+    TTOr [TTAnd tt1; TTAnd tt2]
+  in
+  TTAnd (List.map simplify tasks) |> reduce_task_tree
 
 let prover_name_list = ["alt-ergo"; "cvc3"; "cvc4"; "z3"; "eprover"]
 
@@ -156,10 +209,7 @@ let generate_task filename funcname =
   let tasks = List.map (fun vc ->
                         Taskgen.task_of_vc !inline_assignment vc)
                        vcs in
-  if !trans_flag then
-    (debug "%d tasks before transformation@." (List.length tasks);
-     List.concat @@ List.map simplify_task tasks)
-  else tasks
+  tasks
 
 let print_task_size tasks =
   let sizes = List.map task_size tasks in
@@ -170,23 +220,113 @@ let print_task_size tasks =
   Format.printf "Total size %d@." @@
     List.fold_left (+) 0 sizes
 
+(* let rec tree_map fn tree =
+ *   match tree with
+ *   | TTLeaf t -> fn t
+ *   | TTAnd tts -> TTAnd (List.map (tree_map fn) tts)
+ *   | TTOr tts -> TTOr (List.map (tree_map fn) tts)
+ *   | TTSuccess
+ *   | TTFail -> tree *)
+
+let rec try_on_task_tree prove = function
+  | TTLeaf t as tree -> if prove t then TTSuccess else tree
+  | TTAnd tts ->
+     List.map (try_on_task_tree prove) tts
+     |> List.filter ((=) TTSuccess)
+     |> (function [] -> TTSuccess | [tt] -> tt | tts' -> TTAnd tts')
+  | TTOr tts ->
+     (* Refrain from using List functions to avoid eagerly trying to
+      * prove all the tasks in [tts]: solving one of them suffices. *)
+     let rec try_any tts acc =
+       (* Returns empty list if some of the subtree is proved. *)
+       match tts with
+       | [] ->
+          begin
+            match acc with
+            (* Note: the case of nil does not mean `no more options,
+             * hence this attempt failed'.  *)
+            | [] -> TTFail
+            | [tt] -> tt
+            | _ -> TTOr (List.rev acc) (* original order *)
+          end
+       | tt :: tts' ->
+          let tt' = try_on_task_tree prove tt in
+          (* Success if one of them is solved *)
+          if tt' = TTSuccess then TTSuccess
+          else try_any tts' (tt' :: acc)
+     in
+     try_any tts []
+  | TTSuccess -> TTSuccess
+  | TTFail -> TTFail
+
+let rec print_task_list tasks =
+  let print task =
+    if !print_task_style = "full" then
+      begin
+        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
+        print_task_full task None
+      end
+    else if !print_task_style = "short" then
+      begin
+        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
+        print_task_short task None
+      end
+  in
+  List.iter print tasks
+
+let rec print_task_tree tt =
+  let rec pp_structure fmt tt =
+    match tt with
+    | TTSuccess -> Format.pp_print_string fmt "<proved>"
+    | TTFail -> assert false
+    | TTLeaf task -> Format.pp_print_int fmt (Why3.Task.task_hash task)
+    | TTAnd tts ->
+       Format.printf "(And %a)"
+                     (Format.pp_print_list
+                        ~pp_sep:(fun f _ -> Format.pp_print_string f " ")
+                        pp_structure)
+                     tts
+    | TTOr tts ->
+       Format.printf "(Or %a)"
+                     (Format.pp_print_list
+                        ~pp_sep:(fun f _ -> Format.pp_print_string f " ")
+                        pp_structure)
+                     tts
+  in
+  Format.printf "%a@." pp_structure tt
+
+let rec task_tree_count = function
+  | TTSuccess
+  | TTFail -> 0
+  | TTLeaf _ -> 1
+  | TTAnd tts -> List.length tts
+  | TTOr tts -> 1
+
 let verify_spec filename funcname =
   let tasks = generate_task filename funcname in
-  Format.printf "generated %d tasks.@." (List.length tasks);
-  if !print_size_flag then print_task_size tasks;
+  Format.printf "%d tasks (before simp.)@." (List.length tasks);
+  let tt =
+    if !trans_flag then tt_and (List.map simplify_task tasks)
+    else tt_and (List.map (fun x -> TTLeaf x) tasks)
+  in
+  Format.printf "%d tasks (after simp.)@." (task_tree_count tt);
+  print_task_tree tt;
+  (* if !print_size_flag then print_task_size tasks; *)
   if !prove_flag then
-    let tasks' = List.filter (fun t -> not (try_prove_task ~timelimit:1 t)) tasks in
+    let tt' =
+      try_on_task_tree (fun t -> try_prove_task ~timelimit:1 t) tt
+    in
     debug "eliminating mk_dim3...@.";
-    let tasks' = List.filter (fun t ->
-                              Vctrans.eliminate_ls Why3api.fs_mk_dim3 t
-                              |> task_map_decl simplify_formula
-                              |> Vctrans.eliminate_linear_quantifier
-                              |> task_map_decl simplify_formula
-                              |> apply_why3trans "compute_specified"
-                              (* |> List.map (fun t -> print_task_short t None; t) *)
-                              |> List.for_all (try_prove_task ~timelimit:1)
-                              |> not)
-                             (List.rev tasks')
+    let tt' = try_on_task_tree
+                (fun t ->
+                 Vctrans.eliminate_ls Why3api.fs_mk_dim3 t
+                 |> task_map_decl simplify_formula
+                 |> Vctrans.eliminate_linear_quantifier
+                 |> task_map_decl simplify_formula
+                 |> apply_why3trans "compute_specified"
+                 (* |> List.map (fun t -> print_task_short t None; t) *)
+                 |> List.for_all (try_prove_task ~timelimit:1))
+                tt'
     in
     (* ----try congruence *)
     (* debug_flag := true; *)
@@ -218,7 +358,7 @@ let verify_spec filename funcname =
            |> List.for_all @@ f (n - 1)
     in
     debug "trying congruence...@.";
-    let tasks' = List.filter (fun t -> not @@ f 10 t) tasks' in
+    let tt'' = try_on_task_tree (fun t -> f 10 t) tt' in
     (* ----try eliminate-equality *)
     debug "trying eliminate equality...@.";
     let try_elim_eq task =
@@ -232,29 +372,18 @@ let verify_spec filename funcname =
           |> apply_why3trans "compute_specified"
         else [task']
       in
-      not @@ (List.for_all try_prove_task tasks)
+      List.for_all try_prove_task tasks
     in
-    let tasks' = List.filter try_elim_eq (List.rev tasks') in
+    let tt''' = try_on_task_tree try_elim_eq tt'' in
     (* print unsolved tasks *)
-    List.iter (fun task ->
-               if !print_task_style = "full" then
-                 begin
-                   Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
-                   print_task_full task None
-                 end
-               else if !print_task_style = "short" then
-                 begin
-                   Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
-                   print_task_short task None
-                 end)
-              tasks';
+    print_task_tree tt''';
     (* List.iter Vctrans.collect_eqns_test tasks'; *)
-    if tasks' <> [] then
-      Format.printf "%d unsolved task%s.@."
-                    (List.length tasks') (* (List.length tasks) *)
-                    (if List.length tasks' = 1 then "" else "s")
-    else
+    if tt''' = TTSuccess then
       Format.printf "Verified!@."
+    else
+      let n = task_tree_count tt''' in
+      Format.printf "%d unsolved task%s.@."
+                    n (if n = 1 then "" else "s")
   else
     if !print_task_style = "full" then
       List.iter (fun task ->
