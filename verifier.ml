@@ -59,26 +59,22 @@ type task_tree =
                                  * because we use no refutation
                                  * procedure. *)
 
-let rec repeat_on_term f t =
-  let t' = f t in
-  if Why3.Term.t_equal t t' then t else repeat_on_term f t'
-
 let tt_and = function
   | [] -> TTSuccess
   | [tt] -> tt
   | tts -> TTAnd tts
 
 let tt_or = function
-  | [] -> invalid_arg "tt_or, empty list"
+  | [] -> TTFail                (* probably should not happen *)
   | [tt] -> tt
   | tts -> TTOr tts
 
 let rec reduce_task_tree = function
   | TTLeaf _ as tt -> tt
-  | TTAnd [] -> TTSuccess
-  | TTOr [] -> TTFail
-  | TTAnd [tt]
-  | TTOr [tt] -> reduce_task_tree tt
+  (* | TTAnd [] -> TTSuccess
+   * | TTOr [] -> TTFail
+   * | TTAnd [tt]
+   * | TTOr [tt] -> reduce_task_tree tt *)
   | TTAnd tts ->
      let tts' = List.map reduce_task_tree tts in
      if List.mem TTFail tts' then TTFail
@@ -89,6 +85,101 @@ let rec reduce_task_tree = function
      else tt_or @@ List.remove_all tts' TTFail
   | TTSuccess -> TTSuccess
   | TTFail -> TTFail
+
+let print_task_size tasks =
+  let sizes = List.map task_size tasks in
+  List.iteri (fun i n ->
+              Format.printf "Task #%d has size %d@."
+                            (i + 1) n)
+             sizes;
+  Format.printf "Total size %d@." @@
+    List.fold_left (+) 0 sizes
+
+(* let rec tree_map fn tree =
+ *   match tree with
+ *   | TTLeaf t -> fn t
+ *   | TTAnd tts -> TTAnd (List.map (tree_map fn) tts)
+ *   | TTOr tts -> TTOr (List.map (tree_map fn) tts)
+ *   | TTSuccess
+ *   | TTFail -> tree *)
+
+let rec try_on_task_tree prove = function
+  | TTLeaf t as tree -> if prove t then TTSuccess else tree
+  | TTAnd tts ->
+     List.map (try_on_task_tree prove) tts
+     |> List.filter ((=) TTSuccess)
+     |> (function [] -> TTSuccess | [tt] -> tt | tts' -> TTAnd tts')
+  | TTOr tts ->
+     (* Refrain from using List functions to avoid eagerly trying to
+      * prove all the tasks in [tts]: solving one of them suffices. *)
+     let rec try_any tts acc =
+       (* Returns empty list if some of the subtree is proved. *)
+       match tts with
+       | [] ->
+          begin
+            match acc with
+            (* Note: the case of nil does not mean `no more options,
+             * hence this attempt failed'.  *)
+            | [] -> TTFail
+            | [tt] -> tt
+            | _ -> TTOr (List.rev acc) (* original order *)
+          end
+       | tt :: tts' ->
+          let tt' = try_on_task_tree prove tt in
+          (* Success if one of them is solved *)
+          if tt' = TTSuccess then TTSuccess
+          else try_any tts' (tt' :: acc)
+     in
+     try_any tts []
+  | TTSuccess -> TTSuccess
+  | TTFail -> TTFail
+
+let rec print_task_list tasks =
+  let print task =
+    if !print_task_style = "full" then
+      begin
+        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
+        print_task_full task None
+      end
+    else if !print_task_style = "short" then
+      begin
+        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
+        print_task_short task None
+      end
+  in
+  List.iter print tasks
+
+let rec print_task_tree tt =
+  let rec pp_structure fmt tt =
+    match tt with
+    | TTSuccess -> Format.pp_print_string fmt "<proved>"
+    | TTFail -> assert false
+    | TTLeaf task -> Format.pp_print_int fmt (Why3.Task.task_hash task)
+    | TTAnd tts ->
+       Format.printf "(And %a)"
+                     (Format.pp_print_list
+                        ~pp_sep:(fun f _ -> Format.pp_print_string f " ")
+                        pp_structure)
+                     tts
+    | TTOr tts ->
+       Format.printf "(Or %a)"
+                     (Format.pp_print_list
+                        ~pp_sep:(fun f _ -> Format.pp_print_string f " ")
+                        pp_structure)
+                     tts
+  in
+  Format.printf "%a@." pp_structure tt
+
+let rec task_tree_count = function
+  | TTSuccess
+  | TTFail -> 0
+  | TTLeaf _ -> 1
+  | TTAnd tts -> List.fold_left (+) 0 (List.map task_tree_count tts)
+  | TTOr tts -> 1
+
+let rec repeat_on_term f t =
+  let t' = f t in
+  if Why3.Term.t_equal t t' then t else repeat_on_term f t'
 
 let simplify_task task =
   let tasks =
@@ -211,102 +302,11 @@ let generate_task filename funcname =
                        vcs in
   tasks
 
-let print_task_size tasks =
-  let sizes = List.map task_size tasks in
-  List.iteri (fun i n ->
-              Format.printf "Task #%d has size %d@."
-                            (i + 1) n)
-             sizes;
-  Format.printf "Total size %d@." @@
-    List.fold_left (+) 0 sizes
-
-(* let rec tree_map fn tree =
- *   match tree with
- *   | TTLeaf t -> fn t
- *   | TTAnd tts -> TTAnd (List.map (tree_map fn) tts)
- *   | TTOr tts -> TTOr (List.map (tree_map fn) tts)
- *   | TTSuccess
- *   | TTFail -> tree *)
-
-let rec try_on_task_tree prove = function
-  | TTLeaf t as tree -> if prove t then TTSuccess else tree
-  | TTAnd tts ->
-     List.map (try_on_task_tree prove) tts
-     |> List.filter ((=) TTSuccess)
-     |> (function [] -> TTSuccess | [tt] -> tt | tts' -> TTAnd tts')
-  | TTOr tts ->
-     (* Refrain from using List functions to avoid eagerly trying to
-      * prove all the tasks in [tts]: solving one of them suffices. *)
-     let rec try_any tts acc =
-       (* Returns empty list if some of the subtree is proved. *)
-       match tts with
-       | [] ->
-          begin
-            match acc with
-            (* Note: the case of nil does not mean `no more options,
-             * hence this attempt failed'.  *)
-            | [] -> TTFail
-            | [tt] -> tt
-            | _ -> TTOr (List.rev acc) (* original order *)
-          end
-       | tt :: tts' ->
-          let tt' = try_on_task_tree prove tt in
-          (* Success if one of them is solved *)
-          if tt' = TTSuccess then TTSuccess
-          else try_any tts' (tt' :: acc)
-     in
-     try_any tts []
-  | TTSuccess -> TTSuccess
-  | TTFail -> TTFail
-
-let rec print_task_list tasks =
-  let print task =
-    if !print_task_style = "full" then
-      begin
-        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
-        print_task_full task None
-      end
-    else if !print_task_style = "short" then
-      begin
-        Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
-        print_task_short task None
-      end
-  in
-  List.iter print tasks
-
-let rec print_task_tree tt =
-  let rec pp_structure fmt tt =
-    match tt with
-    | TTSuccess -> Format.pp_print_string fmt "<proved>"
-    | TTFail -> assert false
-    | TTLeaf task -> Format.pp_print_int fmt (Why3.Task.task_hash task)
-    | TTAnd tts ->
-       Format.printf "(And %a)"
-                     (Format.pp_print_list
-                        ~pp_sep:(fun f _ -> Format.pp_print_string f " ")
-                        pp_structure)
-                     tts
-    | TTOr tts ->
-       Format.printf "(Or %a)"
-                     (Format.pp_print_list
-                        ~pp_sep:(fun f _ -> Format.pp_print_string f " ")
-                        pp_structure)
-                     tts
-  in
-  Format.printf "%a@." pp_structure tt
-
-let rec task_tree_count = function
-  | TTSuccess
-  | TTFail -> 0
-  | TTLeaf _ -> 1
-  | TTAnd tts -> List.length tts
-  | TTOr tts -> 1
-
 let verify_spec filename funcname =
   let tasks = generate_task filename funcname in
   Format.printf "%d tasks (before simp.)@." (List.length tasks);
   let tt =
-    if !trans_flag then tt_and (List.map simplify_task tasks)
+    if !trans_flag then reduce_task_tree @@ tt_and (List.map simplify_task tasks)
     else tt_and (List.map (fun x -> TTLeaf x) tasks)
   in
   Format.printf "%d tasks (after simp.)@." (task_tree_count tt);
@@ -315,6 +315,7 @@ let verify_spec filename funcname =
   if !prove_flag then
     let tt' =
       try_on_task_tree (fun t -> try_prove_task ~timelimit:1 t) tt
+      |> reduce_task_tree
     in
     debug "eliminating mk_dim3...@.";
     let tt' = try_on_task_tree
