@@ -104,26 +104,18 @@ let print_task_size tasks =
  *   | TTFail -> tree *)
 
 let rec try_on_task_tree prove = function
-  | TTLeaf t as tree -> if prove t then TTSuccess else tree
+  | TTLeaf task as tree -> if prove task then TTSuccess else tree
   | TTAnd tts ->
      List.map (try_on_task_tree prove) tts
-     |> List.filter ((=) TTSuccess)
-     |> (function [] -> TTSuccess | [tt] -> tt | tts' -> TTAnd tts')
+     |> List.filter ((<>) TTSuccess)
+     |> tt_and
   | TTOr tts ->
      (* Refrain from using List functions to avoid eagerly trying to
       * prove all the tasks in [tts]: solving one of them suffices. *)
      let rec try_any tts acc =
        (* Returns empty list if some of the subtree is proved. *)
        match tts with
-       | [] ->
-          begin
-            match acc with
-            (* Note: the case of nil does not mean `no more options,
-             * hence this attempt failed'.  *)
-            | [] -> TTFail
-            | [tt] -> tt
-            | _ -> TTOr (List.rev acc) (* original order *)
-          end
+       | [] -> tt_or (List.rev acc)
        | tt :: tts' ->
           let tt' = try_on_task_tree prove tt in
           (* Success if one of them is solved *)
@@ -196,7 +188,7 @@ let simplify_task task =
   (* |> List.map @@ (task_map_decl simplify_formula) *)
   in
   let simplify task =
-    let tt1 =
+    let tasks1 =
       (* merge -> qe *)
       task
       |> task_map_decl (repeat_on_term Vctrans.merge_quantifiers)
@@ -204,20 +196,22 @@ let simplify_task task =
       |> task_map_decl simplify_formula
       |> Vctrans.simplify_affine_formula
       |> apply_why3trans "compute_specified"
+      |> List.unique ~cmp:Why3.Task.task_equal
       |> List.map (fun x -> TTLeaf x)
     in
-    let tt2 =
+    let tasks2 =
       (* no merging, only affine expression simplification *)
       task
       |> Vctrans.simplify_affine_formula
       |> Vctrans.eliminate_linear_quantifier
       |> task_map_decl simplify_formula
       |> apply_why3trans "compute_specified"
+      |> List.unique ~cmp:Why3.Task.task_equal
       |> List.map (fun x -> TTLeaf x)
     in
-    TTOr [TTAnd tt1; TTAnd tt2]
+    tt_or [tt_and tasks1; tt_and tasks2]
   in
-  TTAnd (List.map simplify tasks) |> reduce_task_tree
+  tt_and (List.map simplify tasks) |> reduce_task_tree
 
 let prover_name_list = ["alt-ergo"; "cvc3"; "cvc4"; "z3"; "eprover"]
 
@@ -317,6 +311,7 @@ let verify_spec filename funcname =
       try_on_task_tree (fun t -> try_prove_task ~timelimit:1 t) tt
       |> reduce_task_tree
     in
+    print_task_tree tt';
     debug "eliminating mk_dim3...@.";
     let tt' = try_on_task_tree
                 (fun t ->
@@ -360,6 +355,7 @@ let verify_spec filename funcname =
     in
     debug "trying congruence...@.";
     let tt'' = try_on_task_tree (fun t -> f 10 t) tt' in
+    print_task_tree tt'';
     (* ----try eliminate-equality *)
     debug "trying eliminate equality...@.";
     let try_elim_eq task =
