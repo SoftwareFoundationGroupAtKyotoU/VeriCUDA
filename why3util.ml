@@ -406,11 +406,15 @@ let rec task_map_decl f task =
 let apply_why3trans trans task =
   Why3.Trans.apply_transform trans env task
 
-(* apply [fn] to the goal of [task] *)
+(* applies [fn] to the goal of [task]; if [fn] does not change the goal,
+ * returns the original task. *)
 let transform_goal fn task =
-  let goal, task' = Why3.Task.task_separate_goal task in
-  Why3.Task.add_decl task' @@
-    Why3.Decl.create_prop_decl Why3.Decl.Pgoal
-                               (Why3.Task.task_goal task) @@
-      (fn (Why3.Task.task_goal_fmla task))
-
+  let _, task' = Why3.Task.task_separate_goal task in
+  let goal = Why3.Task.task_goal_fmla task in
+  let goal' = fn goal in
+  if t_equal goal goal' then
+    task
+  else
+    Why3.Task.add_decl task' @@
+      Why3.Decl.create_prop_decl Why3.Decl.Pgoal (Why3.Task.task_goal task)
+                                 goal'
