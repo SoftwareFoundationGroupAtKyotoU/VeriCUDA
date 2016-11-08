@@ -50,14 +50,14 @@ let find_decl file name =
 (* ---------------- transform task *)
 type task_tree =
   | TTLeaf of Why3.Task.task
+  | TTLazy of task_tree lazy_t (* currently this is not used *)
   | TTAnd of task_tree list
   | TTOr of task_tree list
   | TTSuccess                   (* no more task to solve *)
   | TTFail                      (* unsolvable task; currently there is
                                  * no possibilty of arising this during
-                                 * verification process,
-                                 * because we use no refutation
-                                 * procedure. *)
+                                 * verification process, because we use
+                                 * no refutation procedure. *)
 
 let tt_and = function
   | [] -> TTSuccess
@@ -71,6 +71,7 @@ let tt_or = function
 
 let rec reduce_task_tree = function
   | TTLeaf _ as tt -> tt
+  | TTLazy _ as tt -> tt
   (* | TTAnd [] -> TTSuccess
    * | TTOr [] -> TTFail
    * | TTAnd [tt]
@@ -105,6 +106,7 @@ let print_task_size tasks =
 
 let rec try_on_task_tree prove = function
   | TTLeaf task as tree -> if prove task then TTSuccess else tree
+  | TTLazy x -> try_on_task_tree prove @@ Lazy.force x
   | TTAnd tts ->
      List.map (try_on_task_tree prove) tts
      |> List.filter ((<>) TTSuccess)
@@ -142,6 +144,7 @@ let print_task_list tasks = List.iter print_task tasks
 
 let rec print_all_tasks = function
   | TTLeaf task -> print_task task
+  | TTLazy x -> print_all_tasks (Lazy.force x) (* should this be forced? *)
   | TTAnd tts
   | TTOr tts -> List.iter print_all_tasks tts
   | TTSuccess
@@ -153,6 +156,7 @@ let rec print_task_tree tt =
     | TTSuccess -> Format.pp_print_string fmt "<proved>"
     | TTFail -> assert false
     | TTLeaf task -> Format.pp_print_int fmt (Why3.Task.task_hash task)
+    | TTLazy _ -> Format.pp_print_string fmt "<lazy>"
     | TTAnd tts ->
        Format.printf "(And %a)"
                      (Format.pp_print_list
@@ -172,6 +176,7 @@ let rec task_tree_count = function
   | TTSuccess
   | TTFail -> 0
   | TTLeaf _ -> 1
+  | TTLazy _ -> 1
   | TTAnd tts -> List.fold_left (+) 0 (List.map task_tree_count tts)
   | TTOr tts -> 1
 
@@ -216,6 +221,8 @@ let simplify_task task =
       |> List.map (fun x -> TTLeaf x)
     in
     tt_or [tt_and tasks1; tt_and tasks2]
+  (* the following wasn't as effective as expected... *)
+  (* tt_or [TTLazy (lazy (tt_and tasks1)); TTLazy (lazy (tt_and tasks2))] *)
   in
   tt_and (List.map simplify tasks) |> reduce_task_tree
 
@@ -306,7 +313,11 @@ let verify_spec filename funcname =
   let tasks = generate_task filename funcname in
   Format.printf "%d tasks (before simp.)@." (List.length tasks);
   let tt =
-    if !trans_flag then reduce_task_tree @@ tt_and (List.map simplify_task tasks)
+    if !trans_flag
+    (* then reduce_task_tree @@ tt_and (List.map simplify_task tasks) *)
+    then
+      let result, t = time (fun () -> reduce_task_tree @@ tt_and (List.map simplify_task tasks)) in
+      Printf.printf "reduction: %f\n" t; result
     else tt_and (List.map (fun x -> TTLeaf x) tasks)
   in
   Format.printf "%d tasks (after simp.)@." (task_tree_count tt);
