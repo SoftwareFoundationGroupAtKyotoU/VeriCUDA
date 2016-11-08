@@ -328,24 +328,27 @@ let is_polynomial_node t =
 
 exception CannotReduceVariables
 
-(* FIXME: this doesn't seem to work if t is not affine in x, y *)
 let really_process_polynomial x a y z t =
   (* [t] is a prime polynomial node of the formula in question. *)
   let p = to_polynomial t in
-  (* Given p(a, x, y), a polynomial in a, x, and y,
-   * returns a function f that receives [z] and returns a polynomial
-   * g(a, z) such that g(a, x + a * y) = p(a, x, y).
-   * If there is no such f, returns [None]. *)
+  (* Given p(a, x, y), a polynomial in a, x, and y, returns a
+   * polynomial g(a, z) such that g(a, x + a * y) = p(a, x, y).  If
+   * there is no such f, returns [None].
+   * Lemma: p(a, x, y) is written in the form g(a, x + a * y)
+   *   if and only if p(a, x, y) = p(a, x + a * y, 0).
+   *   In this case g can be taken as g(a, z) = p(a, z, 0). *)
   (* debug "Processing polynomial with %a, %a, %a:@.  @[%a@]...@."
    *       Why3.Pretty.print_term x
    *       Why3.Pretty.print_term a
    *       Why3.Pretty.print_term y
    *       Why3.Pretty.print_term t; *)
   let p_a = to_polynomial a in
+  let p_x = to_polynomial x in
   let p_y = to_polynomial y in
-  if p_contains y (p_subst x (p_neg (p_mult p_a p_y)) p)
-  then raise CannotReduceVariables
-  else from_polynomial @@ p_subst x (p_var z) (p_subst y p_zero p)
+  if p_equal p (p_subst x (p_add p_x (p_mult p_a p_y))
+                        (p_subst y p_zero p))
+  then from_polynomial @@ p_subst x (p_var z) (p_subst y p_zero p)
+  else raise CannotReduceVariables
 
 let process_polynomial x a y z t =
   let rec f p t =
