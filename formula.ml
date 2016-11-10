@@ -10,8 +10,6 @@ open Why3api
 
 (* determine the kind (local/shared/global) of varinfo *)
 
-let use_triggers_flag = ref false
-
 type var_kind = Local | Shared | Global | Formal
 
 let ty_of_kind k t =
@@ -271,7 +269,7 @@ let rec translate mask texp tbl = function
      let var = t_var vsym in
      let tbl' = extend_table tbl x None var in
      let triggers =
-       if !use_triggers_flag then
+       if !Options.use_triggers_flag then
          List.map (fun t -> [translate mask texp tbl' t]) ts
        else []
      in
@@ -281,7 +279,7 @@ let rec translate mask texp tbl = function
      let var = t_var vsym in
      let tbl' = extend_table tbl x None var in
      let triggers =
-       if !use_triggers_flag then
+       if !Options.use_triggers_flag then
          List.map (fun t -> [translate mask texp tbl' t]) ts
        else []
      in
@@ -291,7 +289,7 @@ let rec translate mask texp tbl = function
      let var = t_var vsym in
      let tbl' = extend_table tbl x None var in
      let triggers =
-       if !use_triggers_flag then
+       if !Options.use_triggers_flag then
          List.map (fun t -> [translate mask texp tbl' t]) ts
        else []
      in
@@ -301,7 +299,7 @@ let rec translate mask texp tbl = function
      let var = t_var vsym in
      let tbl' = extend_table tbl x None var in
      let triggers =
-       if !use_triggers_flag then
+       if !Options.use_triggers_flag then
          List.map (fun t -> [translate mask texp tbl' t]) ts
        else []
      in

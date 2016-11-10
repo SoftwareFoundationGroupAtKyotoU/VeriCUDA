@@ -16,7 +16,7 @@ INCLUDES+= -I $(shell $(OCAMLFIND) query menhirLib)
 INCLUDES+= -I $(shell $(OCAMLFIND) query extlib)
 # INCLUDES+= -I $(shell pwd)/why3api
 
-OBJS=ftree.cmo fparser.cmo flexer.cmo why3api.cmo utils.cmo	\
+OBJS=ftree.cmo fparser.cmo flexer.cmo why3api.cmo options.cmo utils.cmo	\
 	polynomial.cmo formula.cmo why3util.cmo vc.cmo vcg.cmo	\
 	vctrans.cmo print.cmo taskgen.cmo verifier.cmo		\
 	interactive.cmo main.cmo

@@ -1,14 +1,16 @@
-let debug_flag = ref false
-let warn_flag = ref false
 let stderr_fmt = Format.formatter_of_out_channel stderr
 
 let warn fmt =
-  let fprintf = if !warn_flag then Format.fprintf else Format.ifprintf in
+  let fprintf =
+    if !Options.warn_flag then Format.fprintf else Format.ifprintf
+  in
   fprintf stderr_fmt "[Warning] ";
   fprintf stderr_fmt fmt
 
 let debug fmt =
-  let fprintf = if !debug_flag then Format.fprintf else Format.ifprintf in
+  let fprintf =
+    if !Options.debug_flag then Format.fprintf else Format.ifprintf
+  in
   fprintf stderr_fmt "[Debug] ";
   fprintf stderr_fmt fmt
 

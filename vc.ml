@@ -37,6 +37,3 @@ type vc = {
   vc_goal : term;
   vc_name : string option;
 }
-
-let check_barrier_divergence = ref false
-let check_race_freedom = ref false

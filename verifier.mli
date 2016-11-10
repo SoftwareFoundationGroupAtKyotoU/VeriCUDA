@@ -1,14 +1,4 @@
 type task_tree
-val print_exn_flag : bool ref
-val print_task_style : string ref
-val prove_flag : bool ref
-val trans_flag : bool ref
-val default_timelimit : int ref
-val default_memlimit : int ref
-val interactive_flag : bool ref
-val inline_assignment : bool ref
-val print_size_flag : bool ref
-val parse_only_flag : bool ref
 val repeat_on_term :
   (Why3.Term.term -> Why3.Term.term) -> Why3.Term.term -> Why3.Term.term
 (* val simplify_formula : Why3.Term.term -> Why3.Term.term *)

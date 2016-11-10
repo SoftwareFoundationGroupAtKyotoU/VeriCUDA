@@ -1,6 +1,4 @@
 
-val use_triggers_flag : bool ref
-
 type var_kind = Local | Shared | Global | Formal
 
 val ty_of_kind : var_kind -> Why3.Ty.ty -> Why3.Ty.ty

@@ -421,7 +421,7 @@ let transform_instr instr c = match instr with
   | Cil.Call (None, Cil.Lval (Cil.Var {Cil.vname = "__syncthreads"},
                               Cil.NoOffset),
               args, _) ->
-     if !check_barrier_divergence then
+     if !Options.check_barrier_divergence then
        let vs = create_vsymbol (Why3.Ident.id_fresh "t") ty_thread in
        add_vc c (t_forall_threads vs [] (c.c_mask (t_var vs)))
      else c

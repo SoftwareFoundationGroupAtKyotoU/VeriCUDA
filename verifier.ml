@@ -6,17 +6,6 @@ open Utils
 open Print
 open ExtList
 
-let print_exn_flag = ref false
-let print_task_style = ref "full"
-let prove_flag = ref true
-let trans_flag = ref true
-let default_timelimit = ref 1
-let default_memlimit = ref 4000
-let interactive_flag = ref false
-let inline_assignment = ref true
-let print_size_flag = ref false
-let parse_only_flag = ref false
-
 let decl_size { Why3.Theory.td_node = n } =
   match n with
   | Why3.Theory.Decl { Why3.Decl.d_node = d } ->
@@ -129,12 +118,12 @@ let rec try_on_task_tree prove = function
   | TTFail -> TTFail
 
 let print_task task =
-  if !print_task_style = "full" then
+  if !Options.print_task_style = "full" then
     begin
       Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
       print_task_full task None
     end
-  else if !print_task_style = "short" then
+  else if !Options.print_task_style = "short" then
     begin
       Format.printf "Unsolved task: #%d:@." (Why3.Task.task_hash task);
       print_task_short task None
@@ -242,8 +231,8 @@ let kill_prover_calls pcs =
 exception Finished
 
 let try_prove_task ?(provers=prover_name_list)
-                   ?(timelimit=(!default_timelimit))
-                   ?(memlimit=(!default_memlimit)) task =
+                   ?(timelimit=(!Options.timelimit))
+                   ?(memlimit=(!Options.memlimit)) task =
   let pcs = List.map
               (fun name ->
                let pcall = prove_task ~timelimit ~memlimit name task () in
@@ -295,7 +284,7 @@ let generate_task filename funcname =
   let file = parse_file filename in
   debug "parsed file %s" filename;
   let fdecl = find_decl file funcname in
-  if !parse_only_flag then
+  if !Options.parse_only_flag then
     begin
       Cil.printCilAsIs := true;
       let sep = String.make 70 '=' in
@@ -305,7 +294,7 @@ let generate_task filename funcname =
     end;
   let vcs = generate_vc file fdecl in
   let tasks = List.map (fun vc ->
-                        Taskgen.task_of_vc !inline_assignment vc)
+                        Taskgen.task_of_vc !Options.inline_assign_flag vc)
                        vcs in
   tasks
 
@@ -313,7 +302,7 @@ let verify_spec filename funcname =
   let tasks = generate_task filename funcname in
   Format.printf "%d tasks (before simp.)@." (List.length tasks);
   let tt =
-    if !trans_flag
+    if !Options.trans_flag
     (* then reduce_task_tree @@ tt_and (List.map simplify_task tasks) *)
     then
       let result, t = time (fun () -> reduce_task_tree @@ tt_and (List.map simplify_task tasks)) in
@@ -323,7 +312,7 @@ let verify_spec filename funcname =
   Format.printf "%d tasks (after simp.)@." (task_tree_count tt);
   print_task_tree tt;
   (* if !print_size_flag then print_task_size tasks; *)
-  if !prove_flag then
+  if !Options.prove_flag then
     let tt' =
       try_on_task_tree (fun t -> try_prove_task ~timelimit:1 t) tt
       |> reduce_task_tree
@@ -378,7 +367,7 @@ let verify_spec filename funcname =
     let try_elim_eq task =
       let task' = transform_goal Vctrans.replace_equality_with_false task in
       let tasks =
-        if !trans_flag then
+        if !Options.trans_flag then
           task'
           |> task_map_decl simplify_formula
           |> Vctrans.eliminate_linear_quantifier
@@ -400,12 +389,12 @@ let verify_spec filename funcname =
       Format.printf "%d unsolved task%s.@."
                     n (if n = 1 then "" else "s")
   else
-    if !print_task_style = "full" then
+    if !Options.print_task_style = "full" then
       List.iter (fun task ->
                  Format.printf "Task #%d:@." (Why3.Task.task_hash task);
                  print_task_full task None)
                 tasks
-    else if !print_task_style = "short" then
+    else if !Options.print_task_style = "short" then
       List.iter (fun task ->
                  Format.printf "Task #%d:@." (Why3.Task.task_hash task);
                  print_task_short task None)

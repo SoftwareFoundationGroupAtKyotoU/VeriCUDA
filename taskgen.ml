@@ -78,7 +78,7 @@ let rec find_access matcher (x : lsymbol) (t : term) (bvars : int Mvs.t) =
         find_access matcher x t' (Mvs.add vs 1 bvars)
      | Tquant (_, tq) ->
         let (vsyms, trigger, t) = t_open_quant tq in
-        if !use_triggers_flag then
+        if !Options.use_triggers_flag then
           List.iter (List.iter (fun t -> assert (not (t_ls_occurs x t))))
                     trigger
         else
@@ -327,7 +327,7 @@ let formula_of_assignment
        let ns = t_tuple @@ List.map t_var ns_syms in
        t_forall_close
          (th_sym :: ns_syms)
-         (if !use_triggers_flag then [[(t_get (t_get (t_ls x') th) ns)]] else [])
+         (if !Options.use_triggers_flag then [[(t_get (t_get (t_ls x') th) ns)]] else [])
          (t_implies_simp
             (t_is_valid_thread th)
             (t_and_simp
@@ -364,7 +364,7 @@ let formula_of_assignment
        let ns = t_tuple @@ List.map t_var ns_syms in
        t_forall_close
          (b_sym :: ns_syms)
-         (if !use_triggers_flag then [[(t_get (t_get (t_ls x') b) ns)]] else [])
+         (if !Options.use_triggers_flag then [[(t_get (t_get (t_ls x') b) ns)]] else [])
          (* We assume the mask implies the validity of the thread.
           * So we don't need the validity condition on [b] explicitly
           * in the first clause, but we do need it in the second. *)
@@ -403,7 +403,7 @@ let formula_of_assignment
        let ns = t_tuple @@ List.map t_var ns_syms in
        t_forall_close
          ns_syms
-         (if !use_triggers_flag then [[(t_get (t_ls x') ns)]] else [])
+         (if !Options.use_triggers_flag then [[(t_get (t_ls x') ns)]] else [])
          (t_or_simp
             (t_exists_close
                [th_sym] []
