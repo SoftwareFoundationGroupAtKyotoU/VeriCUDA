@@ -58,21 +58,33 @@ let tt_or = function
   | [tt] -> tt
   | tts -> TTOr tts
 
+let rec task_tree_equal tt1 tt2 =
+  match tt1, tt2 with
+  | TTLeaf t1, TTLeaf t2 -> Why3.Task.task_equal t1 t2
+  | TTLazy x, TTLazy y -> x == y
+  | TTAnd tts1, TTAnd tts2
+  | TTOr tts1, TTOr tts2 ->
+     List.length tts1 = List.length tts2 &&
+       List.for_all2 task_tree_equal tts1 tts2
+  | TTSuccess, TTSuccess
+  | TTFail, TTFail -> true
+  | _, _ -> false
+
 let rec reduce_task_tree = function
   | TTLeaf _ as tt -> tt
   | TTLazy _ as tt -> tt
-  (* | TTAnd [] -> TTSuccess
-   * | TTOr [] -> TTFail
-   * | TTAnd [tt]
-   * | TTOr [tt] -> reduce_task_tree tt *)
   | TTAnd tts ->
      let tts' = List.map reduce_task_tree tts in
      if List.mem TTFail tts' then TTFail
-     else tt_and @@ List.remove_all tts' TTSuccess
+     else List.remove_all tts' TTSuccess
+          |> List.unique ~cmp:task_tree_equal
+          |> tt_and
   | TTOr tts ->
      let tts' = List.map reduce_task_tree tts in
      if List.mem TTSuccess tts' then TTSuccess
-     else tt_or @@ List.remove_all tts' TTFail
+     else List.remove_all tts' TTFail
+          |> List.unique ~cmp:task_tree_equal
+          |> tt_or
   | TTSuccess -> TTSuccess
   | TTFail -> TTFail
 
