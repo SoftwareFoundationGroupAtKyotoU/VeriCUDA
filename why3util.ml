@@ -390,9 +390,9 @@ let rec task_map_decl f task =
      | Why3.Theory.Decl {
          Why3.Decl.d_node = Why3.Decl.Dprop (k, pr, t)
        }
-          when k = Why3.Decl.Pgoal ||
-                 let name = pr.Why3.Decl.pr_name.Why3.Ident.id_string in
-                 Str.string_match (Str.regexp "^vc_premise_") name 0
+          (* when k = Why3.Decl.Pgoal ||
+           *        let name = pr.Why3.Decl.pr_name.Why3.Ident.id_string in
+           *        Str.string_match (Str.regexp "^vc_premise_") name 0 *)
        ->
         let t' = f t in
         if k == Why3.Decl.Paxiom && is_tautology t' then
@@ -400,8 +400,11 @@ let rec task_map_decl f task =
         else
           Why3.Task.add_decl (task_map_decl f task_prev)
                              (Why3.Decl.create_prop_decl k pr t')
-     | _ ->
+     | Why3.Theory.Decl _ ->
         Why3.Task.add_tdecl (task_map_decl f task_prev) tdecl
+     | _ ->                     (* use, clone, meta *)
+        (* Why3.Task.add_tdecl (task_map_decl f task_prev) tdecl *)
+        task
 
 let apply_why3trans trans task =
   Why3.Trans.apply_transform trans env task

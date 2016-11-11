@@ -197,7 +197,7 @@ let simplify_task task =
     |> List.concat
     |> List.map @@ apply_why3trans "split_goal_right"
     |> List.concat
-  (* |> List.map @@ (task_map_decl simplify_formula) *)
+    |> List.map @@ (task_map_decl simplify_formula)
   in
   let simplify task =
     let tasks1 =
@@ -317,8 +317,9 @@ let verify_spec filename funcname =
     if !Options.trans_flag
     (* then reduce_task_tree @@ tt_and (List.map simplify_task tasks) *)
     then
-      let result, t = time (fun () -> reduce_task_tree @@ tt_and (List.map simplify_task tasks)) in
-      Printf.printf "reduction: %f\n" t; result
+      (* let result, t = time (fun () -> reduce_task_tree @@ tt_and (List.map simplify_task tasks)) in
+       * Printf.printf "reduction: %f\n" t; result *)
+      reduce_task_tree @@ tt_and (List.map simplify_task tasks)
     else tt_and (List.map (fun x -> TTLeaf x) tasks)
   in
   Format.printf "%d tasks (after simp.)@." (task_tree_count tt);

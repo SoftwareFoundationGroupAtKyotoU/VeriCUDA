@@ -422,7 +422,7 @@ let split_vc_decls decls =
     (fun d (lss, axs, asgns) ->
      match d with
      | VarDecl ls -> (ls :: lss, axs, asgns)
-     | AxiomDecl a -> (lss, a :: axs, asgns)
+     | AxiomDecl (a, name) -> (lss, (a, name) :: axs, asgns)
      | AsgnDecl a -> (lss, axs, a :: asgns))
     decls ([], [], [])
 
@@ -441,7 +441,8 @@ let eliminate_assignment_from_vc vc inline =
     { vc with
       vc_decls =
         List.map (function
-                   | AxiomDecl f -> AxiomDecl (elim_asgn false f)
+                   | AxiomDecl (f, name) ->
+                      AxiomDecl (elim_asgn false f, name)
                    | d -> d)
                  vc.vc_decls;
       vc_goal = elim_asgn true vc.vc_goal }
@@ -449,7 +450,11 @@ let eliminate_assignment_from_vc vc inline =
     { vc with
       vc_decls =
         List.map (function
-                   | AsgnDecl a -> AxiomDecl (formula_of_assignment a)
+                   | AsgnDecl a ->
+                      let name =
+                        "assign_" ^ a.a_newvar.ls_name.Why3.Ident.id_string
+                      in
+                      AxiomDecl (formula_of_assignment a, Some name)
                    | d -> d)
                  vc.vc_decls }
 
@@ -493,11 +498,15 @@ let task_of_vc inline vc =
   debug "Added all variable declarations@.";
   (* ---- add axioms *)
   List.iteri
-    (fun n a ->
+    (fun n (a, name) ->
      (* debug "adding axiom %a@." Why3.Pretty.print_term a; *)
+     let decl_name =
+       match name with
+       | None -> "vc_premise_" ^ string_of_int n
+       | Some name -> name
+     in
      let decl_sym = Why3.Decl.create_prsymbol
-                      (Why3.Ident.id_fresh ("vc_premise_" ^
-                                              string_of_int n)) in
+                      (Why3.Ident.id_fresh decl_name) in
      add_decl @@
        Why3.Decl.create_prop_decl Why3.Decl.Paxiom decl_sym a)
     vc_axiom;

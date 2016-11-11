@@ -320,7 +320,7 @@ type vcg_config = {
 }
 
 let make_initial_decls vmap preconds =
-  List.map (fun c -> AxiomDecl c) preconds
+  List.map (fun c -> axiom_decl ~name:"precondition" c) preconds
   @ VarinfoMap.fold (fun _ (_, ls) acc -> VarDecl ls :: acc) vmap []
 
 let make_vc ?name c goal =
@@ -416,7 +416,7 @@ let transform_instr instr c = match instr with
      in
      let add_assertion c a =
        let c' = add_vc c a in
-       { c' with c_decls = AxiomDecl a :: c.c_decls } in
+       { c' with c_decls = axiom_decl ~name:"assertion" a :: c.c_decls } in
      List.fold_left add_assertion c assertions
   | Cil.Call (None, Cil.Lval (Cil.Var {Cil.vname = "__syncthreads"},
                               Cil.NoOffset),
@@ -664,8 +664,9 @@ let rec transform_stmt s c = match s with
       * Also we can assume that the loop counter is not negative. *)
      let decls' =
        VarDecl l_lc
-       :: AxiomDecl (t_le t_zero (t_ls l_lc))
-       :: List.map (fun t -> AxiomDecl t) (invs mask' vmap' c.c_logic lcmap')
+       :: axiom_decl ~name:"loop_counter" (t_le t_zero (t_ls l_lc))
+       :: List.map (fun t -> axiom_decl ~name:"invariant" t)
+                   (invs mask' vmap' c.c_logic lcmap')
        @ List.map (fun (_, ls) -> VarDecl ls) ls_alist
        @ c.c_decls in
      (* Another side condition: invariants have to be invariant indeed.
@@ -678,7 +679,9 @@ let rec transform_stmt s c = match s with
        (* We have to add an assumption that the mask is not empty. *)
        let decls'' =
          let vs = create_vsymbol (Why3.Ident.id_fresh "t") ty_thread in 
-         AxiomDecl (t_exists_threads vs [] (mask' (t_var vs))) :: decls'
+         axiom_decl ~name:"loop_cont_cond"
+                    (t_exists_threads vs [] (mask' (t_var vs)))
+         :: decls'
        in
        (* Use [vmap'] and [decls''] to make a new configuration
         * corresponding to the state after several (possebly 0)
@@ -705,7 +708,7 @@ let rec transform_stmt s c = match s with
        let t = t_forall_threads vs [] @@
                  t_not (t_and (c.c_mask (t_var vs))
                               (translate_exp e vmap' (t_var vs))) in
-       AxiomDecl t :: decls' in
+       axiom_decl ~name:"loop_exit_cond" t :: decls' in
      { c with c_vmap = vmap'; c_decls = decls'';
               c_vcs = vcs2 @ vcs1; }
   | Cil.Block b -> transform_block b c
@@ -729,6 +732,6 @@ let generate_vc file fdecl =
   debug "generating vc for %s..." fdecl.Cil.svar.Cil.vname;
   let c' = transform_block body c in
   let post = find_postconditions body.Cil.bstmts c'.c_vmap log [] in
-  let vcs = List.map (make_vc c') post @ c'.c_vcs in
+  let vcs = List.map (make_vc ~name:"postcondition" c') post @ c'.c_vcs in
   debug "generated vc.\n";
   vcs

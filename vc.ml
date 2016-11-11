@@ -27,9 +27,14 @@ type assignment_info = {
 }
 
 type declaration =
-  | VarDecl of lsymbol        (* automatically generated variable *)
-  | AxiomDecl of term         (* automatically generated assumption *)
-  | AsgnDecl of assignment_info (* assignment *)
+  (* automatically generated variable *)
+  | VarDecl of lsymbol
+  (* automatically generated assumption *)
+  | AxiomDecl of term * string option
+  (* assignment *)
+  | AsgnDecl of assignment_info
+
+let axiom_decl ?(name) t = AxiomDecl (t, name)
 
 type vc = {
   (* vc_asgn : assignment_info list; *)
