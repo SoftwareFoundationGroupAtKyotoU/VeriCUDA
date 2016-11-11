@@ -12,7 +12,7 @@ __global__ void diffusion1d_naive (
       requires n > 1
       ensures fn[0] == c0 * (f[0] + f[1]) + c1 * f[0];
       ensures fn[n - 1] == c0 * (f[n - 2] + f[n - 1]) + c1 * f[n - 1];
-      ensures forall j. 0 < j -> j < n - 1 ->
+      ensures \forall j; 0 < j -> j < n - 1 ->
         fn[j] == c0 * (f[j - 1] + f[j + 1]) + c1 * f[j]; */
 
   int   j;
@@ -36,7 +36,7 @@ __global__ void diffusion1d(float *f, float *fn, int n, float c0, float c1) {
       requires n > 1;
       ensures fn[0] == c0 * (f[0] + f[1]) + c1 * f[0];
       ensures fn[n - 1] == c0 * (f[n - 2] + f[n - 1]) + c1 * f[n - 1];
-      ensures forall j. 0 < j -> j < n - 1 ->
+      ensures \forall j; 0 < j -> j < n - 1 ->
         fn[j] == c0 * (f[j - 1] + f[j + 1]) + c1 * f[j]; */
 
   int j, js = threadIdx.x + 1;
@@ -64,7 +64,7 @@ __global__ void diffusion1dQuestion(float *f, float *fn, int n, float c0, float 
       requires n > 1;
       ensures fn[0] == c0 * (f[0] + f[1]) + c1 * f[0];
       ensures fn[n - 1] == c0 * (f[n - 2] + f[n - 1]) + c1 * f[n - 1];
-      ensures forall j. 0 < j -> j < n - 1 ->
+      ensures \forall j; 0 < j -> j < n - 1 ->
         fn[j] == c0 * (f[j - 1] + f[j + 1]) + c1 * f[j] */
 
   int j, js = threadIdx.x + 1;
@@ -90,7 +90,7 @@ __global__ void diffusion1dDirectional(float *f, float *fn, int n, float c0, flo
   /*@ requires n == blockDim.x * gridDim.x;
       requires n > 1;
       ensures fn[n - 1] == (c0 + c1) * f[n - 1];
-      ensures forall j. j >= 0 -> j < n - 1 ->
+      ensures \forall j; j >= 0 -> j < n - 1 ->
       fn[j] == c0 * f[j + 1] + c1 * f[j]; */
 
   int j, js = threadIdx.x;
