@@ -81,30 +81,27 @@ void diffusion1d(float *f, float *fn, int n, float c0, float c1)
             fn[j] == c0 * (f[j - 1] + f[j + 1]) + c1 * f[j]"
         );
 
-    int j, js = threadIdx.x + 1;
-    /* float fcc, fce, fcw; */
     __attribute__((shared)) float fs[];
     
-    j = blockDim.x * blockIdx.x + threadIdx.x;
-    fs[js] = f[j];
+    fs[threadIdx.x + 1] = f[blockDim.x * blockIdx.x + threadIdx.x];
 
     if(threadIdx.x == 0) {
-        if(blockIdx.x == 0) fs[0] = fs[1];
-        else fs[0] = f[j-1];
+        fs[0] =
+            (blockIdx.x == 0) ?
+            fs[1] :
+            f[blockDim.x * blockIdx.x + threadIdx.x-1];
     }
     if(threadIdx.x == blockDim.x - 1) {
-        if(blockIdx.x == gridDim.x - 1) fs[js + 1] = fs[js];
-        else fs[js + 1] = f[j+1];
+        fs[threadIdx.x + 2] =
+            (blockIdx.x == gridDim.x - 1) ?
+            fs[threadIdx.x + 1] :
+            f[blockDim.x * blockIdx.x + threadIdx.x+1];
     }
 
     __syncthreads();
 
-    /* fcc = fs[js]; */
-    /* fcw = fs[js - 1]; */
-    /* fce = fs[js + 1]; */
-    /* fn[j] = c0 * (fcw + fce) + c1 * fcc; */
-
-    fn[j] = c0*(fs[js - 1] + fs[js + 1]) + c1*fs[js];
+    fn[blockDim.x * blockIdx.x + threadIdx.x] =
+        c0*(fs[threadIdx.x] + fs[threadIdx.x + 2]) + c1*fs[threadIdx.x + 1];
 }
 
 void diffusion1dQuestion(float *f, float *fn, int n, float c0, float c1)

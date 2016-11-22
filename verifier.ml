@@ -97,6 +97,14 @@ let print_task_size tasks =
   Format.printf "Total size %d@." @@
     List.fold_left (+) 0 sizes
 
+let rec task_tree_size = function
+  | TTLeaf t -> task_size t
+  | TTLazy t -> task_tree_size (Lazy.force t)
+  | TTAnd tts
+  | TTOr tts -> List.fold_left (+) 0 (List.map task_tree_size tts)
+  | TTSuccess
+  | TTFail -> 0
+
 (* let rec tree_map fn tree =
  *   match tree with
  *   | TTLeaf t -> fn t
@@ -263,14 +271,14 @@ let try_prove_task ?(provers=prover_name_list)
   let rec check pcs =
     let finished, running = filter_finished pcs in
     List.iter (fun (name, result) ->
-               print_result name result;
+               (* print_result name result; *)
                (* for debugging; print task if inconsistent assumption
                    is reported *)
-               if Str.string_match (Str.regexp "Inconsistent assumption")
-                                   result.Why3.Call_provers.pr_output 0
-               then
-                 (Format.printf "Task with inconsistent assumption:@.";
-                  print_task_short task None);
+               (* if Str.string_match (Str.regexp "Inconsistent assumption")
+                *                     result.Why3.Call_provers.pr_output 0
+                * then
+                *   (Format.printf "Task with inconsistent assumption:@.";
+                *    print_task_short task None); *)
                if result.Why3.Call_provers.pr_answer = Why3.Call_provers.Valid
                then
                  begin
@@ -289,7 +297,7 @@ let try_prove_task ?(provers=prover_name_list)
       (* (ignore @@ Unix.system "sleep 0.1"; check running) *)
       (Unix.sleepf 0.1; check running)
   in
-  Format.printf "Calling provers...@.";
+  (* Format.printf "Calling provers...@."; *)
   try check pcs with Finished -> true
 
 let generate_task filename funcname =
@@ -310,27 +318,37 @@ let generate_task filename funcname =
                        vcs in
   tasks
 
+let rec count_conjuncts = function
+  | TTLeaf _ -> 1
+  | TTLazy t -> count_conjuncts (Lazy.force t)
+  | TTAnd ts -> List.fold_left (+) 0 (List.map count_conjuncts ts)
+  | TTOr ts -> 1
+  | TTFail
+  | TTSuccess -> 0
+
+let rec count_leaves = function
+  | TTLeaf _ -> 1
+  | TTLazy t -> count_leaves (Lazy.force t)
+  | TTAnd ts
+  | TTOr ts -> List.fold_left (+) 0 (List.map count_leaves ts)
+  | TTFail
+  | TTSuccess -> 0
+
 let verify_spec filename funcname =
-  let tasks = generate_task filename funcname in
-  Format.printf "%d tasks (before simp.)@." (List.length tasks);
-  let tt =
-    if !Options.trans_flag
-    (* then reduce_task_tree @@ tt_and (List.map simplify_task tasks) *)
-    then
-      (* let result, t = time (fun () -> reduce_task_tree @@ tt_and (List.map simplify_task tasks)) in
-       * Printf.printf "reduction: %f\n" t; result *)
-      reduce_task_tree @@ tt_and (List.map simplify_task tasks)
-    else tt_and (List.map (fun x -> TTLeaf x) tasks)
+  let ttgen () =
+    let tasks = generate_task filename funcname in
+    let tasks' =
+      if !Options.trans_flag then List.map simplify_task tasks
+      else List.map (fun t -> TTLeaf t) tasks
+    in
+    reduce_task_tree @@ tt_and tasks'
   in
-  Format.printf "%d tasks (after simp.)@." (task_tree_count tt);
-  print_task_tree tt;
-  (* if !print_size_flag then print_task_size tasks; *)
-  if !Options.prove_flag then
+  let prove tt () =
     let tt' =
       try_on_task_tree (fun t -> try_prove_task ~timelimit:1 t) tt
       |> reduce_task_tree
     in
-    print_task_tree tt';
+    (* print_task_tree tt'; *)
     debug "eliminating mk_dim3...@.";
     let tt' = try_on_task_tree
                 (fun t ->
@@ -374,7 +392,7 @@ let verify_spec filename funcname =
     in
     debug "trying congruence...@.";
     let tt'' = try_on_task_tree (fun t -> f 10 t) tt' in
-    print_task_tree tt'';
+    (* print_task_tree tt''; *)
     (* ----try eliminate-equality *)
     debug "trying eliminate equality...@.";
     let try_elim_eq task =
@@ -390,25 +408,15 @@ let verify_spec filename funcname =
       in
       List.for_all try_prove_task tasks
     in
-    let tt''' = try_on_task_tree try_elim_eq tt'' in
-    (* print unsolved tasks *)
-    print_task_tree tt''';
-    print_all_tasks tt''';
-    (* List.iter Vctrans.collect_eqns_test tasks'; *)
-    if tt''' = TTSuccess then
-      Format.printf "Verified!@."
-    else
-      let n = task_tree_count tt''' in
-      Format.printf "%d unsolved task%s.@."
-                    n (if n = 1 then "" else "s")
-  else
-    if !Options.print_task_style = "full" then
-      List.iter (fun task ->
-                 Format.printf "Task #%d:@." (Why3.Task.task_hash task);
-                 print_task_full task None)
-                tasks
-    else if !Options.print_task_style = "short" then
-      List.iter (fun task ->
-                 Format.printf "Task #%d:@." (Why3.Task.task_hash task);
-                 print_task_short task None)
-                tasks
+    try_on_task_tree try_elim_eq tt''
+  in
+  let tt, vcg_time = time ttgen in
+  let tt', smt_time = time (prove tt) in
+  let n_conj = count_conjuncts tt in
+  let n_leaves = count_leaves tt in
+  let n_conj' = n_conj - count_conjuncts tt' in
+  (* let n_leaves' = n_leaves - count_leaves tt' in *)
+  Format.printf "Result: %d %d\n" n_conj' n_conj;
+  Format.printf "VCG: %f\n" vcg_time;
+  Format.printf "SMT: %f\n" smt_time;
+  Format.printf "Size: %d %d\n" (task_tree_size tt) n_leaves
