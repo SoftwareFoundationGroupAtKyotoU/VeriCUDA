@@ -97,14 +97,6 @@ let print_task_size tasks =
   Format.printf "Total size %d@." @@
     List.fold_left (+) 0 sizes
 
-(* let rec tree_map fn tree =
- *   match tree with
- *   | TTLeaf t -> fn t
- *   | TTAnd tts -> TTAnd (List.map (tree_map fn) tts)
- *   | TTOr tts -> TTOr (List.map (tree_map fn) tts)
- *   | TTSuccess
- *   | TTFail -> tree *)
-
 let rec try_on_task_tree prove = function
   | TTLeaf task as tree -> if prove task then TTSuccess else tree
   | TTLazy x -> try_on_task_tree prove @@ Lazy.force x
@@ -200,6 +192,8 @@ let simplify_task task =
     |> List.map @@ (task_map_decl simplify_formula)
   in
   let simplify task =
+    (* it could slightly improve performance if the following
+     * are made lazy *)
     let tasks1 =
       (* merge -> qe *)
       task
@@ -222,8 +216,6 @@ let simplify_task task =
       |> List.map (fun x -> TTLeaf x)
     in
     tt_or [tt_and tasks1; tt_and tasks2]
-  (* the following wasn't as effective as expected... *)
-  (* tt_or [TTLazy (lazy (tt_and tasks1)); TTLazy (lazy (tt_and tasks2))] *)
   in
   tt_and (List.map simplify tasks) |> reduce_task_tree
 
@@ -283,10 +275,6 @@ let try_prove_task ?(provers=prover_name_list)
               finished;
     if running = [] then false
     else
-      (* wait for a while and try again  *)
-      (* (Unix.select [] [] [] 0.1; check running) *)
-      (* (Unix.sleep 1; check running) *)
-      (* (ignore @@ Unix.system "sleep 0.1"; check running) *)
       (Unix.sleepf 0.1; check running)
   in
   Format.printf "Calling provers...@.";
@@ -315,10 +303,7 @@ let verify_spec filename funcname =
   Format.printf "%d tasks (before simp.)@." (List.length tasks);
   let tt =
     if !Options.trans_flag
-    (* then reduce_task_tree @@ tt_and (List.map simplify_task tasks) *)
     then
-      (* let result, t = time (fun () -> reduce_task_tree @@ tt_and (List.map simplify_task tasks)) in
-       * Printf.printf "reduction: %f\n" t; result *)
       reduce_task_tree @@ tt_and (List.map simplify_task tasks)
     else tt_and (List.map (fun x -> TTLeaf x) tasks)
   in
@@ -347,7 +332,6 @@ let verify_spec filename funcname =
     (* debug_flag := true; *)
     let trans_congruence task =
       let _, task' = Why3.Task.task_separate_goal task in
-      (* debug "trying congruence on:@.  %a@." Why3.Pretty.print_task task; *)
       match Vctrans.apply_congruence @@ Why3.Task.task_goal_fmla task with
       | None -> None
       | Some goal ->
@@ -394,7 +378,6 @@ let verify_spec filename funcname =
     (* print unsolved tasks *)
     print_task_tree tt''';
     print_all_tasks tt''';
-    (* List.iter Vctrans.collect_eqns_test tasks'; *)
     if tt''' = TTSuccess then
       Format.printf "Verified!@."
     else

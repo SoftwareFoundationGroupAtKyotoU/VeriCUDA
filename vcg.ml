@@ -147,11 +147,6 @@ let register_global_vars vmap file =
   in List.fold_left f vmap file.Cil.globals
 
 let register_vars_in_fdecl vmap fdecl =
-  (* debug "@[formals:@ @["; *)
-  (* List.iter (fun vinfo -> debug "%s(%d); " vinfo.Cil.vname vinfo.Cil.vid) formals; *)
-  (* debug "@]@.@[locals:@ @["; *)
-  (* List.iter (fun vinfo -> debug "%s(%d); " vinfo.Cil.vname vinfo.Cil.vid) locals; *)
-  (* debug "@]@."; *)
   let register_formal vmap vinfo = register_vinfo vmap vinfo true in
   let register_slocal vmap vinfo = register_vinfo vmap vinfo false in
   let vmap' = List.fold_left register_formal vmap fdecl.Cil.sformals in

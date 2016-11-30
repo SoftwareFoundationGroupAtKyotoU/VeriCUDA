@@ -66,15 +66,6 @@ let rec to_polynomial t : polynomial =
   | _ ->
      invalid_arg "to_polynomial, a term of type non-int"
 
-(* let to_polynomial_memo = ref Mterm.empty
- * 
- * let to_polynomial t =
- *   try Mterm.find t !to_polynomial_memo
- *   with Not_found ->
- *        let p = to_polynomial t in
- *        to_polynomial_memo := Mterm.add t p !to_polynomial_memo;
- *        p *)
-
 let rec from_polynomial p =
   p_fold (fun t -> t)
          (fun n ->
@@ -390,9 +381,6 @@ let rec task_map_decl f task =
      | Why3.Theory.Decl {
          Why3.Decl.d_node = Why3.Decl.Dprop (k, pr, t)
        }
-          (* when k = Why3.Decl.Pgoal ||
-           *        let name = pr.Why3.Decl.pr_name.Why3.Ident.id_string in
-           *        Str.string_match (Str.regexp "^vc_premise_") name 0 *)
        ->
         let t' = f t in
         if k == Why3.Decl.Paxiom && is_tautology t' then

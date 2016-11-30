@@ -19,7 +19,6 @@ let spec_list = [
    "Pretty print some exceptions");
   ("--debug", Arg.Set Options.debug_flag, "Print debug messages");
   ("--warning", Arg.Set Options.warn_flag, "Print warnings");
-  (* ("--print-task", Arg.Set print_task_flag, "Print generated tasks"); *)
   ("--print-task-style",
    Arg.String (fun s -> Options.print_task_style := s),
    "full, short, or none");

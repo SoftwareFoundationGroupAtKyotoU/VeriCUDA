@@ -55,9 +55,6 @@ let ps_is_valid_bid =
 let t_is_valid_bid t =
   ps_app ps_is_valid_bid [t]
 
-
-(* let ty_thread = Why3.Ty.ty_app (Why3.Theory.ns_find_ts simt_export ["thread"]) [] *)
-
 let t_forall_threads ts triggers t =
   t_forall_close_simp [ts] triggers (t_implies_simp
                                        (t_is_valid_thread (t_var ts))
@@ -80,42 +77,6 @@ let t_andb t1 t2 =
   else if t_equal t2 t_bool_true then t1
   else if t_equal t1 t_bool_false || t_equal t2 t_bool_false then t_bool_false
   else fs_app fs_andb [t1; t2] Why3.Ty.ty_bool
-
-(* type mask_expr = *)
-(*   | MTotal *)
-(*   | MConj of mask_expr * term *)
-(*   | MDiff of mask_expr * term *)
-(* let t_init_mask = MTotal *)
-(* let rec t_is_active m t = match m with *)
-(*   | MTotal -> t_bool_true *)
-(*   | MConj (m', e) -> t_andb (t_is_active m' t) (t_acc_local e t) *)
-(*   | MDiff (m', e) -> t_andb (t_is_active m' t) (t_notb (t_acc_local e t)) *)
-(* let check_mask_expr e = *)
-(*   match e.t_ty with *)
-(*   | None -> failwith "Mask should be of type local bool, but got a formula" *)
-(*   | Some ty -> *)
-(*      if not (Why3.Ty.ty_equal ty (ty_local Why3.Ty.ty_bool)) *)
-(*      then begin *)
-(*          Format.eprintf "Mask should be of type local bool, but got %a@." *)
-(*                         Why3.Pretty.print_ty ty; *)
-(*          failwith "implementation error" *)
-(*        end *)
-(* let t_mask_conj m z = *)
-(*   check_mask_expr z; *)
-(*   MConj(m, z) *)
-(* let t_mask_diff m z = *)
-(*   check_mask_expr z; *)
-(*   MDiff(m, z) *)
-
-(* let t_none m = *)
-(*   let ts = create_vsymbol (Why3.Ident.id_fresh "t") ty_thread in *)
-(*   t_forall_threads ts (t_equ_simp (t_is_active m (t_var ts)) t_bool_false) *)
-
-(* let t_unif m = *)
-(*   let ts = create_vsymbol (Why3.Ident.id_fresh "t") ty_thread in *)
-(*   t_or_simp *)
-(*     (t_forall_threads ts (t_equ_simp (t_is_active m (t_var ts)) t_bool_true)) *)
-(*     (t_forall_threads ts (t_equ_simp (t_is_active m (t_var ts)) t_bool_false)) *)
 
 let fs_bid_of = Why3.Theory.ns_find_ls simt_export ["bid_of"]
 

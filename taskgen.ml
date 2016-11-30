@@ -272,16 +272,6 @@ let rec eliminate_assignment ainfo sign fml =
        * quantifiers are essential, so we can separate traversal and
        * actual elimination function for optimization. *)
       match fml.t_node with
-      (* | Tapp (lsym, [m; a]) ->
-       *    let fml', b = expand ainfo sign fml in
-       *    if b then eliminate_assignment ainfo sign fml'
-       *    else fml *)
-      (* | Tlet (t, tb) -> *)
-      (*    let t' = if is_formula t then eliminate_assignment ainfo t else t in *)
-      (*    let (vsym, t1) = t_open_bound tb in *)
-      (*    t_let_close vsym t' (eliminate_assignment ainfo t1) *)
-      (* | Tcase _ -> not_implemented "case expression" *)
-      (* | Teps _ -> not_implemented "epsilon expression" *)
       | Tquant (q, tq) ->
          begin
            match t_open_quant tq with
@@ -483,23 +473,12 @@ let task_of_vc inline vc =
   let vc = eliminate_assignment_from_vc vc inline in
   let (vc_vars, vc_axiom, vc_asgn) = split_vc_decls vc.vc_decls in
   (* ---- add variable declarations *)
-  List.iter (fun ls ->
-             (* begin match ls.Why3.Term.ls_value with
-              *       | None -> 
-              *          debug "Adding variable declaration of %a@."
-              *                Why3.Pretty.print_ls ls
-              *       | Some ty ->
-              *          debug "Adding variable declaration of %a : %a@."
-              *                Why3.Pretty.print_ls ls
-              *                Why3.Pretty.print_ty ty
-              * end; *)
-             add_decl @@ Why3.Decl.create_param_decl ls)
+  List.iter (fun ls -> add_decl @@ Why3.Decl.create_param_decl ls)
             vc_vars;
   debug "Added all variable declarations@.";
   (* ---- add axioms *)
   List.iteri
     (fun n (a, name) ->
-     (* debug "adding axiom %a@." Why3.Pretty.print_term a; *)
      let decl_name =
        match name with
        | None -> "vc_premise_" ^ string_of_int n
@@ -519,6 +498,5 @@ let task_of_vc inline vc =
     Why3.Decl.create_prsymbol (Why3.Ident.id_fresh name)
   in
   add_decl @@ Why3.Decl.create_prop_decl Why3.Decl.Pgoal goal_sym vc.vc_goal;
-  (* Why3.Trans.apply_transform "split_all_full" Why3api.env !task *)
   !task
 

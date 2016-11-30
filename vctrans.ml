@@ -18,82 +18,6 @@ module I = Why3.BigInt
 open Why3util
 open Why3util.PTerm
 
-(** ---------------- simplification *)
-(* let rec collect_conjuncts t =
- *   match t.t_node with
- *   | Tbinop (Tand, t1, t2) ->
- *      collect_conjuncts t1 @ collect_conjuncts t2
- *   | _ -> [t]
- * 
- * let rec simplify_guards t =
- *   match t.t_node with
- *   | Tbinop ((Timplies | Tand) as op, t1, t2) ->
- *      let t1' = simplify_guards t1 in
- *      collect_conjuncts t1'
- *      |> List.fold_left
- *           (fun t guard ->
- *            match guard.t_node with
- *            | Tnot guard' -> t_replace_simp guard' t_false t
- *            | _ -> t_replace_simp guard t_true t)
- *           t2
- *      |> simplify_guards
- *      |> t_binary_simp op t1'
- *   | Tbinop (Tor, t1, t2) ->
- *      let t1' = simplify_guards t1 in
- *      let t2' = simplify_guards t2 in
- *      begin
- *        match t1'.t_node with
- *        | Tnot t1'' ->
- *           let t2'' = t_replace_simp t1'' t_true t2' in
- *           t_or_simp t1' t2''
- *        | _ ->
- *           let t2'' = t_replace_simp t1' t_false t2' in
- *           t_or_simp t1' t2''
- *      end
- *   | _ -> t_map_simp simplify_guards t
- * 
- * let rec compute_thread_projections t =
- *   match t.t_node with
- *   (\* bid_of (b, t) --> b *\)
- *   | Tapp (ls, [{ t_node = Tapp (ls', [t1; _]) }])
- *        when ls_equal ls fs_bid_of && ls_equal ls' (fs_tuple 2)
- *     -> t1
- *   (\* tid_of (b, t) --> t *\)
- *   | Tapp (ls, [{ t_node = Tapp (ls', [_; t2]) }])
- *        when ls_equal ls fs_tid_of && ls_equal ls' (fs_tuple 2)
- *     -> t2
- *   (\* x { a; b; c } --> a *\)
- *   | Tapp (ls, [{ t_node = Tapp (ls', [t1; _; _]) }])
- *        when ls_equal ls fs_x && ls_equal ls' fs_mk_dim3
- *     -> t1
- *   (\* y { a; b; c } --> b *\)
- *   | Tapp (ls, [{ t_node = Tapp (ls', [_; t2; _]) }])
- *        when ls_equal ls fs_y && ls_equal ls' fs_mk_dim3
- *     -> t2
- *   (\* z { a; b; c } --> c *\)
- *   | Tapp (ls, [{ t_node = Tapp (ls', [_; _; t3]) }])
- *        when ls_equal ls fs_z && ls_equal ls' fs_mk_dim3
- *     -> t3
- *   | _ ->
- *      t_map_simp compute_thread_projections t
- * 
- * let rec simplify_dim3_equality t =
- *   match t.t_node with
- *   | Tapp (ls, [ { t_node = Tapp (ls1, [x; y; z]) };
- *                 { t_node = Tapp (ls2, [x'; y'; z'])} ])
- *        when ls_equal ls ps_equ &&
- *               ls_equal ls1 fs_mk_dim3 && ls_equal ls2 fs_mk_dim3 ->
- *      t_and_simp_l [t_equ_simp x x'; t_equ_simp y y'; t_equ_simp z z']
- *   | _ -> t_map_simp simplify_dim3_equality t
- * 
- * let rec simplify_formula t =
- *   simplify_guards t
- *   |> compute_thread_projections
- *   |> simplify_dim3_equality
- *   |> remove_trivial_comparison *)
-
-
-
 (** ---------------- Decompose quantifications over thread  *)
 let t_is_valid_tid_inline t =
   let zero = t_zero in
@@ -173,14 +97,6 @@ let rec decompose_thread_quant t =
      else
        TermTF.t_map_simp (fun t -> t) decompose_thread_quant t
   | _ -> TermTF.t_map_simp (fun t -> t) decompose_thread_quant t
-
-(* let decompose_thread_quant t =
- *   let t' = decompose_thread_quant t in
- *   if not (t_equal t t_false) && t_equal t' t_false then
- *     (debug "%a@.-->@.%a@." Why3.Pretty.print_term t
- *            Why3.Pretty.print_term t';
- *      exit 0);
- *   t' *)
 
 
 (** ---------------- eliminating quantifiers *)
@@ -337,11 +253,6 @@ let really_process_polynomial x a y z t =
    * Lemma: p(a, x, y) is written in the form g(a, x + a * y)
    *   if and only if p(a, x, y) = p(a, x + a * y, 0).
    *   In this case g can be taken as g(a, z) = p(a, z, 0). *)
-  (* debug "Processing polynomial with %a, %a, %a:@.  @[%a@]...@."
-   *       Why3.Pretty.print_term x
-   *       Why3.Pretty.print_term a
-   *       Why3.Pretty.print_term y
-   *       Why3.Pretty.print_term t; *)
   let p_a = to_polynomial a in
   let p_x = to_polynomial x in
   let p_y = to_polynomial y in
@@ -728,18 +639,6 @@ let merge_quantifiers t =
           Why3.Pretty.print_term t;
   t'
 
-(* let merge_quantifiers task =
- *   task_map_decl
- *     (fun t ->
- *      let t' = eliminate_unique_quant t
- *               |> merge_quantifiers_t
- *      in
- *      (\* if not (t_equal t t') then
- *       *   debug "eliminate_linear_quantifier turns@.  %a@.into@.  %a@."
- *       *         Why3.Pretty.print_term t Why3.Pretty.print_term t'; *\)
- *      t')
- *     task *)
-
 (** ---------------- eliminate existentials in premises *)
 let rec eliminate_existential_in_premises task =
   let destruct d = match d.Why3.Decl.d_node with
@@ -884,15 +783,6 @@ let rec extract_complex_eqn f =
      end
   | _ -> None
 
-(* let extract_complex_eqn f =
- *   let result = extract_complex_eqn f in
- *   begin match result with
- *         | None -> ()
- *         | Some e ->
- *            debug "extracted eqn: @[%a@]@." print_complex_eqn e
- *   end;
- *   result *)
-
 let is_wf_eqn = function
     { ce_vars = vars;
       ce_guards = guards;
@@ -1017,9 +907,6 @@ let rec apply_complex_eqn eqn seen t =
           (* [t_occurs s t] is not necessarily true because of the
            * simplification. *)
           if t_occurs s t then
-            (* debug "match found: %a@." Why3.Pretty.print_term s;
-             * List.iter (fun t -> debug " list: %a@." Why3.Pretty.print_term t) ts;
-             * List.iter (fun t -> debug " pattern: %a@." Why3.Pretty.print_term t) eqn.ce_args; *)
             t_or_simp
               (t_exists_close eqn.ce_vars [] @@
                  (t_and_simp_l [t_and_simp_l eqn.ce_guards;
@@ -1044,32 +931,6 @@ let apply_eqn_to_term e t =
   match e with
   | SimpleEqn e -> apply_simple_eqn e t
   | ComplexEqn e -> apply_complex_eqn e Sterm.empty t
-
-(* let apply_eqn_to_term eqn t =
- *   debug "rewriting %a...@." Why3.Pretty.print_term t;
- *   let t' = apply_eqn_to_term eqn t in
- *   if not ( t_equal t t') then
- *     debug "rewrote into@.    @[%a@]@." Why3.Pretty.print_term t';
- *   t' *)
-                                
-(* let t_size t =
- *   let rec f n t =
- *     if is_formula t then
- *       t_fold f n t
- *     else
- *       n + 1
- *   in
- *   f 0 t
- * 
- * let apply_eqn_to_term eqn t =
- *   let size = t_size t in
- *   if size > 100 then (\* debug "%a@." Why3.Pretty.print_term t; *\)
- *     debug "apply_eqn_to_term(%d) @?" size;
- *   let t1 = Sys.time () in
- *   let y = apply_eqn_to_term eqn t in
- *   let t2 = Sys.time () in
- *   if size > 100 then debug "%f sec.@." (t2 -. t1);
- *   y *)
 
 let rec apply_eqn_info task eqn_info =
   (* debug "apply_eqn_info %d@." (Why3.Task.task_hash task); *)
@@ -1152,13 +1013,6 @@ let rec apply_eqn_info task eqn_info =
         else
           Why3.Task.add_tdecl task_prev' tdecl
 
-(* let apply_eqn_info task eqn_info =
- *   let task' = apply_eqn_info task eqn_info in
- *   if not (Why3.Task.task_equal task task') then
- *     debug "rewriting using %a@.%a@."
- *           Why3.Pretty.print_pr eqn_info.ei_ps Why3.Pretty.print_task task';
- *   task' *)
-
 let apply_eqn_info_simp tasks eqn_info =
   List.map (fun task ->
             apply_eqn_info task eqn_info
@@ -1184,11 +1038,6 @@ let rewrite_using_premises task =
   (* |> Why3.Trans.apply_transform "simplify_trivial_quantification"
    *                               Why3api.env *)
   |> List.map (task_map_decl simplify_guards)
-  (* |> (fun x ->
-   *     List.iter (fun t ->
-   *                debug "rewrite_using_premises returns:@.  %a@."
-   *                      Why3.Pretty.print_term (Why3.Task.task_goal_fmla t)) x;
-   *     x) *)
 
 
 (** ---------------- quantifier elimination *)
@@ -1321,11 +1170,6 @@ let rec dnf_of vs t: literal list list option =
            | None -> None
            | Some (p, _) when t_v_any (vs_equal vs) (from_polynomial p) -> None
            | Some (p, s) ->
-              (* debug "term %a@." Why3.Pretty.print_term t;
-               * debug "%a@." Why3.Pretty.print_term
-               *       (from_polynomial (p_sub (to_polynomial t1) (to_polynomial t2)));
-               * debug "%a does not occur in %a@."
-               *       Why3.Pretty.print_vs vs Why3.Pretty.print_term (from_polynomial p); *)
               (* t1 - t2 = s * v + p *)
               if ls_equal ls ps_equ then
                 (* v = -s * p *)
@@ -1386,12 +1230,6 @@ let rec dnf_of vs t: literal list list option =
     | _ -> None
   in dnf (nnf_of t)
 
-(* let dnf_of vs t: literal list list option =
- *   let x = dnf_of vs t in
- *   debug "dnf_of %a...@." Why3.Pretty.print_term t;
- *   (match x with Some _ -> debug "success@." | None -> debug "fail@.");
- *   x *)
-
 let print_literal fmt = function
   | Lit_le p -> Format.fprintf fmt "Lit_le (%a)"
                                Why3.Pretty.print_term (from_polynomial p)
@@ -1441,11 +1279,6 @@ let eliminate_quantifier_from_conj c =
 
 let eliminate_quantifier_from_dnf f =
   List.map (fun c -> eliminate_quantifier_from_conj c) f
-
-(* let dnf_of vs t =
- *   debug "building dnf of %a@." Why3.Pretty.print_term t;
- *   dnf_of vs t
- *   |> (fun x -> debug "done@."; x) *)
 
 
 let eliminate_linear_quantifier_1 q vs t =
@@ -2043,6 +1876,7 @@ let simplify_affine_formula task =
 
 (** ----------------unmerge quantifiers *)
 
+(* not implemented yet *)
 (* let unmerge_quantifiers task =
  *   let bounds = collect_ls_bounds task in
  *   
