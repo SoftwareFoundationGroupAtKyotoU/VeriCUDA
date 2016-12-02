@@ -1,4 +1,4 @@
-theory Simt
+theory Cuda
   use import int.Int
   use import bool.Bool
   use import map.Map

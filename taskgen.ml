@@ -458,7 +458,7 @@ let base_task =
   |> use Why3api.map_theory
   |> use Why3api.bool_theory
   |> use Why3api.unit_theory
-  |> use Why3api.simt_theory
+  |> use Why3api.cuda_theory
   |> use Why3api.real_theory
   |> use Why3api.real_infix_theory
   |> use Why3api.real_pow_theory

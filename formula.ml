@@ -38,19 +38,19 @@ let t_y t = t_app fs_y [t] (Some ty_int)
 let t_z t = t_app fs_z [t] (Some ty_int)
 
 let ps_is_valid_thread =
-  Why3.Theory.ns_find_ls simt_export ["is_valid_thread"]
+  Why3.Theory.ns_find_ls cuda_export ["is_valid_thread"]
 
 let t_is_valid_thread t =
   ps_app ps_is_valid_thread [t]
 
 let ps_is_valid_tid =
-  Why3.Theory.ns_find_ls simt_export ["is_valid_tid"]
+  Why3.Theory.ns_find_ls cuda_export ["is_valid_tid"]
 
 let t_is_valid_tid t =
   ps_app ps_is_valid_tid [t]
 
 let ps_is_valid_bid =
-  Why3.Theory.ns_find_ls simt_export ["is_valid_bid"]
+  Why3.Theory.ns_find_ls cuda_export ["is_valid_bid"]
 
 let t_is_valid_bid t =
   ps_app ps_is_valid_bid [t]
@@ -78,7 +78,7 @@ let t_andb t1 t2 =
   else if t_equal t1 t_bool_false || t_equal t2 t_bool_false then t_bool_false
   else fs_app fs_andb [t1; t2] Why3.Ty.ty_bool
 
-let fs_bid_of = Why3.Theory.ns_find_ls simt_export ["bid_of"]
+let fs_bid_of = Why3.Theory.ns_find_ls cuda_export ["bid_of"]
 
 let t_bid_of t = t_app_infer fs_bid_of [t]
 

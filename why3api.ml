@@ -73,25 +73,25 @@ let fs_from_int =
 
 
 
-(** simt related constructs **)
-let simt_theory = Why3.Env.read_theory env ["simt"] "Simt"
+(** cuda related constructs **)
+let cuda_theory = Why3.Env.read_theory env ["cuda"] "Cuda"
 
-let simt_export = simt_theory.Why3.Theory.th_export
-let fs_tid_of = Why3.Theory.ns_find_ls simt_export ["tid_of"]
-let fs_bid_of = Why3.Theory.ns_find_ls simt_export ["bid_of"]
-let fs_bdim = Why3.Theory.ns_find_ls simt_export ["blockDim"]
-let fs_gdim = Why3.Theory.ns_find_ls simt_export ["gridDim"]
-let fs_x = Why3.Theory.ns_find_ls simt_export ["x"]
-let fs_y = Why3.Theory.ns_find_ls simt_export ["y"]
-let fs_z = Why3.Theory.ns_find_ls simt_export ["z"]
-let fs_mk_dim3 = Why3.Theory.ns_find_ls simt_export ["mk dim3"]
+let cuda_export = cuda_theory.Why3.Theory.th_export
+let fs_tid_of = Why3.Theory.ns_find_ls cuda_export ["tid_of"]
+let fs_bid_of = Why3.Theory.ns_find_ls cuda_export ["bid_of"]
+let fs_bdim = Why3.Theory.ns_find_ls cuda_export ["blockDim"]
+let fs_gdim = Why3.Theory.ns_find_ls cuda_export ["gridDim"]
+let fs_x = Why3.Theory.ns_find_ls cuda_export ["x"]
+let fs_y = Why3.Theory.ns_find_ls cuda_export ["y"]
+let fs_z = Why3.Theory.ns_find_ls cuda_export ["z"]
+let fs_mk_dim3 = Why3.Theory.ns_find_ls cuda_export ["mk dim3"]
 
-let ts_dim3 = Why3.Theory.ns_find_ts simt_export ["dim3"]
+let ts_dim3 = Why3.Theory.ns_find_ts cuda_export ["dim3"]
 
 let ty_thread =
-  Why3.Ty.ty_app (Why3.Theory.ns_find_ts simt_export ["thread"]) []
+  Why3.Ty.ty_app (Why3.Theory.ns_find_ts cuda_export ["thread"]) []
 let ty_block =
-  Why3.Ty.ty_app (Why3.Theory.ns_find_ts simt_export ["block"]) []
+  Why3.Ty.ty_app (Why3.Theory.ns_find_ts cuda_export ["block"]) []
 
 let ty_local ty = ty_map ty_thread ty
 let ty_shared ty = ty_map ty_block ty
@@ -108,7 +108,7 @@ let ty_unit =
 
 
 (** sum *)
-let sum_theory = Why3.Env.read_theory env ["simt"] "Sum"
+let sum_theory = Why3.Env.read_theory env ["cuda"] "Sum"
 
 let sum_export = sum_theory.Why3.Theory.th_export
 let fs_sum_i = Why3.Theory.ns_find_ls sum_export ["sum_i"]
