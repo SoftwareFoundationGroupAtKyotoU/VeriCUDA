@@ -30,6 +30,7 @@ theory Cuda
 
 end
 
+(* standard library does not seem to support sums of real values *)
 theory Sum
   use import int.Int
   use import HighOrd
