@@ -21,7 +21,7 @@ OBJS=ftree.cmo fparser.cmo flexer.cmo why3api.cmo options.cmo utils.cmo	\
 	vctrans.cmo print.cmo taskgen.cmo verifier.cmo		\
 	interactive.cmo main.cmo
 
-PROGNAME=a
+PROGNAME=vericuda
 TESTDIR=output/$(shell date +%y%m%d/%H%M%S)
 PROGFLAGS= --warning --print-task-style short
 

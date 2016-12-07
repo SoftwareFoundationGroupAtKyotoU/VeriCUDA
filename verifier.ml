@@ -23,7 +23,16 @@ let task_size task =
 (* ---------------- cuda program file -> Cil *)
 
 let parse_file filename =
-  let f = Frontc.parse filename () in
+  let tempfile = Filename.temp_file "" ".cu" in
+  ignore @@
+    Unix.system (Printf.sprintf "./transform.py < %s > %s"
+                                filename tempfile);
+  let f =
+    try Frontc.parse tempfile ()
+    with Frontc.ParseError("Parse error") ->
+      Sys.remove tempfile; exit 1
+  in
+  Sys.remove tempfile;
   Rmtmps.removeUnusedTemps f;
   f
 
