@@ -1,13 +1,8 @@
-void declare_precondition (void);
-void declare_postcondition (void);
-void declare_invariant (void);
-
-void count_up() {
-    declare_postcondition("x == 11");
-    int x = 0;
-    while (x <= 10) {
-        declare_invariant("x <= 11");
-        x++;
-    }
+__global__ void count_up() {
+  //@ ensures x == 11
+  int x = 0;
+  //@ loop invariant x <= 11
+  while (x <= 10) {
+    x++;
+  }
 }
-
