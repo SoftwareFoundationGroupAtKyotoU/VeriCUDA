@@ -1,3 +1,7 @@
+/* These programs are based on the code available from
+   http://www.kohgakusha.co.jp/support/cuda/
+*/
+
 struct __attribute__((device_builtin)) uint3
 {
     unsigned int x, y, z;

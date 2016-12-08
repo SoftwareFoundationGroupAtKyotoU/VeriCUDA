@@ -1,3 +1,7 @@
+/* These programs are based on NVIDIA's sample program
+   NVIDIA_CUDA-6.5_Samples/0_Simple/matrixMul/matrixMul.cu
+ */
+
 __global__ void matrixMulCUDA(float *C, float *A, float *B, int wA, int wB) {
   /*@ ghost int m;
       ghost int hA;
@@ -7,7 +11,7 @@ __global__ void matrixMulCUDA(float *C, float *A, float *B, int wA, int wB) {
       requires wA == 16 * m;
       requires wB == gridDim.x * 16;
       requires hA == gridDim.y * 16;
-      ensures forall i. forall j.
+      ensures \forall i; \forall j;
         0 <= i && i < hA && 0 <= j && j < wB ->
         C[wB * i + j] == sum(k, A[wA * i + k] * B[wB * k + j], 0, wA-1); */
 
@@ -25,7 +29,7 @@ __global__ void matrixMulCUDA(float *C, float *A, float *B, int wA, int wB) {
   /*@ loop invariant loop_count <= m;
       loop invariant a == aBegin + aStep * loop_count;
       loop invariant b == bBegin + bStep * loop_count;
-      loop invariant forall t : thread.
+      loop invariant \forall t : thread;
         Csub@t == sum(k, A[wA * (16 * by@t + ty@t) + k] * B[wB * k + 16 * bx@t + tx@t],
                       0, 16 * loop_count - 1); */
   for (int a = aBegin, b = bBegin; a <= aEnd; a += aStep, b += bStep) {
@@ -39,7 +43,7 @@ __global__ void matrixMulCUDA(float *C, float *A, float *B, int wA, int wB) {
 #pragma unroll
     /*@ loop invariant k == loop_count;
         loop invariant loop_count <= 16;
-        loop invariant forall t : thread. Csub@t ==
+        loop invariant \forall t : thread; Csub@t ==
           sum(k, A[wA * (16 * by@t + ty@t) + k] * B[wB * k + 16 * bx@t + tx@t],
               0, 16 * loop_count_2 + loop_count - 1); */
     for (int k = 0; k < 16; ++k) {
@@ -59,7 +63,7 @@ __global__ void matrixMul(float *C, float *A, float *B, int wA, int wB, int bsiz
       requires wA == bsize * m;
       requires wB == gridDim.x * bsize;
       requires hA == gridDim.y * bsize;
-      ensures forall i1. forall i2. forall j1. forall j2.
+      ensures \forall i1; \forall i2; \forall j1; \forall j2;
         0 <= i1 && i1 < gridDim.y && 0 <= i2 && i2 < bsize &&
         0 <= j1 && j1 < gridDim.x && 0 <= j2 && j2 < bsize ->
           C[wB * (i1 * bsize + i2) + (j1 * bsize + j2)] ==
@@ -112,7 +116,7 @@ void matrixMul2(float *C, float *A, float *B, int wA, int wB) {
       requires wA == bsize_x * m;
       requires wB == gridDim.x * bsize_x;
       requires hA == gridDim.y * bsize_x;
-      ensures forall i1. forall i2. forall j1. forall j2.
+      ensures \forall i1; \forall i2; \forall j1; \forall j2;
         0 <= i1 && i1 < gridDim.y && 0 <= i2 && i2 < 2 * bsize_y &&
         0 <= j1 && j1 < gridDim.x && 0 <= j2 && j2 < 2 * bsize_y ->
           C[wB * (i1 * 2 * bsize_y + i2) + j1 * 2 * bsize_y + j2] ==
@@ -178,7 +182,7 @@ void matrixMul4(float *C, float *A, float *B, int wA, int wB) {
       requires wA == bsize_x * m;
       requires wB == gridDim.x * bsize_x;
       requires hA == gridDim.y * bsize_x;
-      ensures forall i1. forall i2. forall j1. forall j2.
+      ensures \forall i1; \forall i2; \forall j1; \forall j2;
         0 <= i1 && i1 < gridDim.y && 0 <= i2 && i2 < 4 * bsize_y &&
         0 <= j1 && j1 < gridDim.x && 0 <= j2 && j2 < 4 * bsize_y ->
           C[wB * (i1 * 4 * bsize_y + i2) + j1 * 4 * bsize_y + j2] ==
@@ -286,7 +290,7 @@ void matrixMulk(float *C, float *A, float *B, int wA, int wB, int k) {
 
   /*@ loop invariant i1 == loop_count;
       loop invariant loop_count <= k;
-      loop invariant forall i. 0 <= i && i < i1 -> Csub[i] == 0; */
+      loop invariant \forall i; 0 <= i && i < i1 -> Csub[i] == 0; */
   for (int i1 = 0; i1 < k; i1++) {
     Csub[i1] = 0;
   }
@@ -294,7 +298,7 @@ void matrixMulk(float *C, float *A, float *B, int wA, int wB, int k) {
   /*@ loop invariant loop_count <= m;
       loop invariant a == aBegin + aStep * loop_count;
       loop invariant b == bBegin + bStep * loop_count;
-      loop invariant forall i. 0 <= i && i < k ->
+      loop invariant \forall i; 0 <= i && i < k ->
         Csub[i] == sum(k, A[wA * (bsize_x * by + ty + bsize_y * i) + k] *
                        B[wB * k + bsize_x * bx + tx],
                        0, bsize_x * loop_count - 1); */
@@ -303,9 +307,9 @@ void matrixMulk(float *C, float *A, float *B, int wA, int wB, int k) {
     __shared__ float Bs[][];
     /*@ loop invariant i0 == loop_count;
         loop invariant loop_count <= k;
-        loop invariant forall i. 0 <= i && i < loop_count ->
+        loop invariant \forall i; 0 <= i && i < loop_count ->
           As[ty + bsize_y * i][tx] == A[a + wA * (ty + bsize_y * i) + tx];
-        loop invariant forall i. 0 <= i && i < loop_count ->
+        loop invariant \forall i; 0 <= i && i < loop_count ->
           Bs[ty + bsize_y * i][tx] == B[b + wB * (ty + bsize_y * i) + tx]; */
     for (int i0 = 0; i0 < k; i0++) {
       As[ty + bsize_y * i0][tx] = A[a + wA * (ty + bsize_y * i0) + tx];
@@ -315,18 +319,18 @@ void matrixMulk(float *C, float *A, float *B, int wA, int wB, int k) {
 
     /*@ loop invariant l == loop_count;
         loop invariant loop_count <= bsize_x;
-        loop invariant forall i. 0 <= i && i < k ->
+        loop invariant \forall i; 0 <= i && i < k ->
           Csub[i] == sum(k, A[wA * (bsize_x * by + ty + bsize_y * i) + k] *
                          B[wB * k + bsize_x * bx + tx],
                          0, bsize_x * loop_count_2 + loop_count - 1); */
     for (int l = 0; l < bsize_x; ++l) {
       /*@ loop invariant i == loop_count;
           loop invariant loop_count <= k;
-          loop invariant forall j. 0 <= j && j < loop_count ->
+          loop invariant \forall j; 0 <= j && j < loop_count ->
             Csub[j] == sum(k, A[wA * (bsize_x * by + ty + bsize_y * j) + k] *
                            B[wB * k + bsize_x * bx + tx],
                            0, bsize_x * loop_count_3 + loop_count_2);
-          loop invariant forall j. loop_count <= j && j < k ->
+          loop invariant \forall j; loop_count <= j && j < k ->
             Csub[j] == sum(k, A[wA * (bsize_x * by + ty + bsize_y * j) + k] *
                            B[wB * k + bsize_x * bx + tx],
                            0, bsize_x * loop_count_3 + loop_count_2 - 1); */
@@ -340,7 +344,7 @@ void matrixMulk(float *C, float *A, float *B, int wA, int wB, int k) {
   int c = wB * bsize_x * by + bsize_x * bx;
   /*@ loop invariant j == loop_count;
       loop invariant loop_count <= k;
-      loop invariant forall j. 0 <= j && j < loop_count ->
+      loop invariant \forall j; 0 <= j && j < loop_count ->
       C[c + wB * (ty + bsize_y * j) + tx] == Csub[j]; */
   for (int j = 0; j < k; j++) {
     C[c + wB * (ty + bsize_y * j) + tx] = Csub[j];

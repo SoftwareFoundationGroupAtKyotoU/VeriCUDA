@@ -34,6 +34,7 @@ def transform_assn(s):
     assn = {}
     for i, j in zip(l2, l1[1:]):
         j = j.strip().strip(';')
+        j = j.replace('\\forall', 'forall').replace('\\exists', 'exists')
         add_assn(assn, i, j)
     res = ''
     for i, j in assn.items():

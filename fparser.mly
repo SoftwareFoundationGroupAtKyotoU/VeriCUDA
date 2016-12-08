@@ -6,7 +6,7 @@
 %token INT
 %token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
 %token COMMA ASSIGN OR AND EQ NEQ LT GT LE GE PLUS MINUS MULT DIV MOD POW EXCLAM
-%token IMPL TRUE FALSE FORALL EXISTS DOT SUM ACTIVE AT
+%token IMPL TRUE FALSE FORALL EXISTS DOT SUM ACTIVE AT BACKSLASH
 %token <string> ID
 %token <int> INTV
 %token EOF
@@ -17,6 +17,7 @@
 %token <Ftree.const * Ftree.xyz> CONST
 
 %left DOT
+%left SEMICOLON
 %right IMPL
 %left OR
 %left AND
@@ -40,11 +41,11 @@ expr:
 | expr OR expr    { pt_or [$1; $3] }
 | expr AND expr   { pt_and [$1; $3] }
 | EXCLAM expr        { pt_not $2 }
-| FORALL ID trigger DOT expr { pt_forall $2 $3 $5 }
-| FORALL ID trigger COLON THREADS DOT expr
+| FORALL ID trigger SEMICOLON expr { pt_forall $2 $3 $5 }
+| FORALL ID trigger COLON THREADS SEMICOLON expr
                         { pt_forall_threads $2 $3 $7 }
-| EXISTS ID trigger DOT expr { pt_exists $2 $3 $5 }
-| EXISTS ID trigger COLON THREADS DOT expr
+| EXISTS ID trigger SEMICOLON expr { pt_exists $2 $3 $5 }
+| EXISTS ID trigger COLON THREADS SEMICOLON expr
                         { pt_exists_threads $2 $3 $7 }
 | expr EQ expr          { pt_eq $1 $3 }
 | expr NEQ expr         { pt_neq $1 $3 }
@@ -91,10 +92,10 @@ index_list:
 /* | formula OR formula    { pt_or [$1; $3] } */
 /* | formula AND formula   { pt_and [$1; $3] } */
 /* | EXCLAM formula        { pt_not $2 } */
-/* | FORALL ID DOT formula { pt_forall $2 $4 } */
-/* | FORALL ID COLON THREADS DOT formula */
+/* | FORALL ID SEMICOLON formula { pt_forall $2 $4 } */
+/* | FORALL ID COLON THREADS SEMICOLON formula */
 /*                         { pt_forall_threads $2 $6 } */
-/* | EXISTS ID DOT formula { pt_exists $2 $4 } */
+/* | EXISTS ID SEMICOLON formula { pt_exists $2 $4 } */
 /* | LPAREN formula RPAREN { $2 } */
 /* | term EQ term          { pt_eq $1 $3 } */
 /* | term NEQ term         { pt_neq $1 $3 } */
