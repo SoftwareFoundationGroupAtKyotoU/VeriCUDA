@@ -62,12 +62,18 @@ __global__ void matrixMul(float *C, float *A, float *B, int wA, int wB, int bsiz
       requires 0 <= m;
       requires wA == bsize * m;
       requires wB == gridDim.x * bsize;
-      requires hA == gridDim.y * bsize;
-      ensures \forall i1; \forall i2; \forall j1; \forall j2;
+      requires hA == gridDim.y * bsize; */
+  /*  ensures \forall i1; \forall i2; \forall j1; \forall j2;
         0 <= i1 && i1 < gridDim.y && 0 <= i2 && i2 < bsize &&
         0 <= j1 && j1 < gridDim.x && 0 <= j2 && j2 < bsize ->
           C[wB * (i1 * bsize + i2) + (j1 * bsize + j2)] ==
           sum(k, A[wA * (i1 * bsize + i2) + k] * B[wB * k + j1 * bsize + j2], 0, wA-1); */
+  /* The experiment reported in the new version of the paper uses
+     the above postcondition, but the current implementation can
+     verify the following, more natural one. */
+  /*@ ensures \forall i; \forall j;
+        0 <= i && i < hA && 0 <= j && j < wB ->
+          C[wB * i + j] == sum(k, A[wA * i + k] * B[wB * k + j], 0, wA-1); */
   int bx = blockIdx.x;
   int by = blockIdx.y;
   int tx = threadIdx.x;
