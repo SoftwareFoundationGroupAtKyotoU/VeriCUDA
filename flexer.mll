@@ -6,14 +6,11 @@
     ("sum", SUM);
     ("active", ACTIVE);
     ("int", INT);
+    ("integer", INT);
     ("thread", THREADS);
     ("forall", FORALL);
     ("exists", EXISTS);
-  ]
-  let binderrs =  [
-    ("forall", FORALL);
-    ("exists", EXISTS);
-    (* ("let",  LET); *)
+    ("lambda", LAMBDA);
   ]
   let special_constants = [
     ("threadIdx", Ftree.TID);

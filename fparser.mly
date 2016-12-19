@@ -6,7 +6,7 @@
 %token INT
 %token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
 %token COMMA ASSIGN OR AND EQ NEQ LT GT LE GE PLUS MINUS MULT DIV MOD POW EXCLAM
-%token IMPL TRUE FALSE FORALL EXISTS DOT SUM ACTIVE AT BACKSLASH
+%token IMPL TRUE FALSE FORALL EXISTS DOT SUM ACTIVE AT BACKSLASH LAMBDA
 %token <string> ID
 %token <int> INTV
 %token EOF
@@ -62,14 +62,17 @@ expr:
 | MINUS expr %prec UMINUS	{ pt_uminus $2 }
 /* | ID LPAREN arg_expr_list RPAREN        { pt_call ($1, $3) } */
 | INTV                  { pt_int $1 }
-| SUM LPAREN ID COMMA expr COMMA expr COMMA expr RPAREN {
-        pt_sum $3 $5 $7 $9
+| SUM LPAREN expr COMMA expr COMMA lambda RPAREN {
+        let (v, e) = $7 in pt_sum v e $3 $5
   }
 | ACTIVE LPAREN expr RPAREN     { pt_act $3 }
 |  expr AT expr          { pt_at $1 $3 }
 | LPAREN expr RPAREN	{ $2 }
 | ID index_list         { pt_acc $1 $2 }
 | CONST                    { pt_const (fst $1) (snd $1) }
+
+lambda:
+| LAMBDA INT ID SEMICOLON expr { ($3, $5) }
 
 trigger:
 | /* empty */   { [] }
